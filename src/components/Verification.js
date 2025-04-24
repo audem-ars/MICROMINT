@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../contexts/AppContext';
 import Header from './Header';
 import Navigation from './Navigation';
-import { Shield, ArrowRight, BarChart2 } from 'lucide-react';
+import { Shield, ArrowRight } from 'lucide-react';
 
 const Verification = () => {
   const { pendingVerifications, verifyTransaction, balance, refreshData } = useApp();
@@ -12,6 +12,33 @@ const Verification = () => {
   const [verificationWorker, setVerificationWorker] = useState(null);
   const [verificationDetails, setVerificationDetails] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
+  
+  // Define completeVerification with useCallback to avoid dependency warnings
+  const completeVerification = useCallback((verification) => {
+    setVerificationDetails(verification);
+    
+    // Add a slight delay to show 100% progress
+    setTimeout(() => {
+      try {
+        verifyTransaction(selectedVerification);
+        setVerifying(false);
+        setVerificationProgress(0);
+        setShowDetails(true);
+        
+        // Close details after 5 seconds
+        setTimeout(() => {
+          setShowDetails(false);
+          setVerificationDetails(null);
+          setSelectedVerification(null);
+        }, 5000);
+      } catch (error) {
+        console.error('Verification failed:', error);
+        setVerifying(false);
+        setVerificationProgress(0);
+        alert('Verification failed: ' + error.message);
+      }
+    }, 500);
+  }, [selectedVerification, verifyTransaction]);
   
   // Initialize web worker for verification
   useEffect(() => {
@@ -36,34 +63,7 @@ const Verification = () => {
         worker.terminate();
       };
     }
-  }, []);
-  
-  // Complete verification
-  const completeVerification = (verification) => {
-    setVerificationDetails(verification);
-    
-    // Add a slight delay to show 100% progress
-    setTimeout(() => {
-      try {
-        verifyTransaction(selectedVerification);
-        setVerifying(false);
-        setVerificationProgress(0);
-        setShowDetails(true);
-        
-        // Close details after 5 seconds
-        setTimeout(() => {
-          setShowDetails(false);
-          setVerificationDetails(null);
-          setSelectedVerification(null);
-        }, 5000);
-      } catch (error) {
-        console.error('Verification failed:', error);
-        setVerifying(false);
-        setVerificationProgress(0);
-        alert('Verification failed: ' + error.message);
-      }
-    }, 500);
-  };
+  }, [completeVerification]);
   
   const handleVerify = (id) => {
     if (verifying) return;
