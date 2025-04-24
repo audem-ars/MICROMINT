@@ -1,98 +1,100 @@
-import React, { createContext, useState, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext } from 'react';
+import dagService from '../services/DAG';
 
 // Create the context
 const AppContext = createContext();
 
-// Sample transaction data
-const sampleTransactions = [
-  { id: 1, type: 'send', amount: 25.00, currency: 'USD', recipient: 'Sarah Chen', date: '2h ago', status: 'completed' },
-  { id: 2, type: 'receive', amount: 150.00, currency: 'USD', sender: 'Work Project', date: '1d ago', status: 'completed' },
-  { id: 3, type: 'verify', amount: 2.50, currency: 'MM', description: 'Verification reward', date: '1d ago', status: 'completed' },
-  { id: 4, type: 'send', amount: 50.00, currency: 'EUR', recipient: 'Online Store', date: '3d ago', status: 'completed' },
-  { id: 5, type: 'receive', amount: 75.25, currency: 'USD', sender: 'Client Payment', date: '5d ago', status: 'completed' }
-];
-
-// Sample verification data
-const sampleVerifications = [
-  { id: 101, amount: 35.00, currency: 'USD', sender: 'Alex Morgan', recipient: 'Wallet #8f92', date: '2m ago', reward: 0.45 },
-  { id: 102, amount: 120.00, currency: 'EUR', sender: 'Wallet #3d7f', recipient: 'Global Shop', date: '5m ago', reward: 0.52 },
-  { id: 103, amount: 5.50, currency: 'USD', sender: 'Wallet #a12b', recipient: 'Coffee Shop', date: '8m ago', reward: 0.25 }
-];
-
 // Provider component
 export const AppProvider = ({ children }) => {
-  // Define state
+  // Current wallet
+  const [currentWallet, setCurrentWallet] = useState(null);
+  
+  // Balance and transactions state
   const [balance, setBalance] = useState({
-    USD: 1250.75,
-    EUR: 980.30,
-    MM: 512.45
+    USD: 0,
+    EUR: 0,
+    MM: 0
   });
   
   const [selectedCurrency, setSelectedCurrency] = useState('USD');
-  const [transactions, setTransactions] = useState(sampleTransactions);
-  const [pendingVerifications, setPendingVerifications] = useState(sampleVerifications);
-  const [user, setUser] = useState({
-    id: 'mm_8f92a6d1b4c7',
-    name: 'Alex Smith',
-    avatar: null,
-    verified: true
-  });
-
+  const [transactions, setTransactions] = useState([]);
+  const [pendingVerifications, setPendingVerifications] = useState([]);
+  
+  // Initialize wallet and data
+  useEffect(() => {
+    const wallet = dagService.getCurrentWallet();
+    setCurrentWallet(wallet);
+    
+    // Set balances
+    setBalance(wallet.balances);
+    
+    // Load transaction history
+    setTransactions(dagService.getTransactionHistory());
+    
+    // Load pending verifications
+    setPendingVerifications(dagService.getPendingVerifications(3));
+  }, []);
+  
   // Functions to update state
   const addTransaction = (transaction) => {
-    const newTransaction = {
-      id: transactions.length + 100,
-      date: 'Just now',
-      status: 'pending',
-      ...transaction
-    };
-    
-    setTransactions([newTransaction, ...transactions]);
-    
-    // If it's a send transaction, update balance
-    if (transaction.type === 'send') {
-      setBalance({
-        ...balance,
-        [transaction.currency]: balance[transaction.currency] - transaction.amount
-      });
-    }
-    
-    // Simulate transaction completion after 2 seconds
-    setTimeout(() => {
-      setTransactions(current => 
-        current.map(tx => 
-          tx.id === newTransaction.id ? { ...tx, status: 'completed' } : tx
-        )
+    try {
+      // Create the transaction in the DAG
+      const newTransaction = dagService.createTransaction(
+        transaction.amount,
+        transaction.currency,
+        transaction.recipient,
+        transaction.note || ''
       );
-    }, 2000);
-    
-    return newTransaction;
+      
+      // Update local state
+      setBalance(dagService.getCurrentWallet().balances);
+      setTransactions(dagService.getTransactionHistory());
+      
+      return {
+        ...newTransaction,
+        type: 'send',
+        status: 'pending'
+      };
+    } catch (error) {
+      console.error('Transaction failed:', error);
+      throw error;
+    }
   };
   
   const verifyTransaction = (verificationId) => {
-    // Remove from pending verifications
-    setPendingVerifications(current => 
-      current.filter(v => v.id !== verificationId)
-    );
-    
-    // Add verification reward to MM balance
-    const verification = pendingVerifications.find(v => v.id === verificationId);
-    
-    if (verification) {
-      // Add to MM balance
-      setBalance({
-        ...balance,
-        MM: balance.MM + verification.reward
-      });
+    try {
+      // Verify the transaction in the DAG
+      const reward = dagService.verifyTransaction(verificationId);
       
-      // Add to transaction history
-      addTransaction({
-        type: 'verify',
-        amount: verification.reward,
-        currency: 'MM',
-        description: 'Verification reward'
-      });
+      // Update pending verifications
+      setPendingVerifications(current => 
+        current.filter(v => v.id !== verificationId)
+      );
+      
+      // Get new pending verifications to replace the verified one
+      const newVerifications = dagService.getPendingVerifications(1);
+      if (newVerifications.length > 0) {
+        setPendingVerifications(current => [...current, ...newVerifications]);
+      }
+      
+      // Update balances
+      setBalance(dagService.getCurrentWallet().balances);
+      
+      // Update transaction history
+      setTransactions(dagService.getTransactionHistory());
+      
+      return reward;
+    } catch (error) {
+      console.error('Verification failed:', error);
+      throw error;
     }
+  };
+  
+  // Refresh data
+  const refreshData = () => {
+    setBalance(dagService.getCurrentWallet().balances);
+    setTransactions(dagService.getTransactionHistory());
+    setPendingVerifications(dagService.getPendingVerifications(3));
   };
 
   // Value object
@@ -102,9 +104,15 @@ export const AppProvider = ({ children }) => {
     setSelectedCurrency,
     transactions,
     pendingVerifications,
-    user,
+    user: {
+      id: currentWallet?.id || '',
+      name: currentWallet?.name || 'Anonymous',
+      avatar: null,
+      verified: true
+    },
     addTransaction,
-    verifyTransaction
+    verifyTransaction,
+    refreshData
   };
 
   // Return provider
