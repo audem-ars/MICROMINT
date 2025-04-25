@@ -1,0 +1,11 @@
+{
+    "version": 2,
+    "routes": [
+      { "handle": "filesystem" },
+      { "src": "/api/(.*)", "dest": "/api/$1" },
+      { "src": "/(.*)", "dest": "/index.html" }
+    ],
+    "env": {
+      "MONGODB_URI": "@mongodb_uri"
+    }
+  }

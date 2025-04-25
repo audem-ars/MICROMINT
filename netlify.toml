@@ -6,3 +6,7 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Specify Node.js version for functions
+[build.environment]
+  NODE_VERSION = "16"
