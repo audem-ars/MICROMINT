@@ -50,7 +50,7 @@ export const getUserData = async (token) => {
 
 // Wallet and transaction functions
 export const getWallet = async (walletId, token) => {
-  return apiRequest(`/getWallet?walletId=${walletId}`, {
+  return apiRequest(`/wallets/get?walletId=${walletId}`, {
     headers: {
       'Authorization': `Bearer ${token}`
     }
@@ -58,7 +58,7 @@ export const getWallet = async (walletId, token) => {
 };
 
 export const getBalance = async (walletId, token) => {
-  return apiRequest(`/getBalance?walletId=${walletId}`, {
+  return apiRequest(`/wallets/balance?walletId=${walletId}`, {
     headers: {
       'Authorization': `Bearer ${token}`
     }
@@ -66,7 +66,7 @@ export const getBalance = async (walletId, token) => {
 };
 
 export const getTransactions = async (walletId, token) => {
-  return apiRequest(`/getTransactions?walletId=${walletId}`, {
+  return apiRequest(`/transactions/history?walletId=${walletId}`, {
     headers: {
       'Authorization': `Bearer ${token}`
     }
@@ -74,7 +74,7 @@ export const getTransactions = async (walletId, token) => {
 };
 
 export const getPendingVerifications = async (count = 3, token) => {
-  return apiRequest(`/getPendingVerifications?count=${count}`, {
+  return apiRequest(`/transactions/pending-verifications?count=${count}`, {
     headers: {
       'Authorization': `Bearer ${token}`
     }
@@ -82,7 +82,7 @@ export const getPendingVerifications = async (count = 3, token) => {
 };
 
 export const createTransaction = async (transaction, token) => {
-  return apiRequest('/createTransaction', {
+  return apiRequest('/transactions/create', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -93,7 +93,7 @@ export const createTransaction = async (transaction, token) => {
 };
 
 export const verifyTransaction = async (transactionId, token) => {
-  return apiRequest('/verifyTransaction', {
+  return apiRequest('/transactions/verify', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -105,7 +105,7 @@ export const verifyTransaction = async (transactionId, token) => {
 
 // Graph visualization
 export const getTransactionGraph = async (walletId, depth = 20, token) => {
-  return apiRequest(`/getTransactionGraph?walletId=${walletId}&depth=${depth}`, {
+  return apiRequest(`/transactions/graph?walletId=${walletId}&depth=${depth}`, {
     headers: {
       'Authorization': `Bearer ${token}`
     }
