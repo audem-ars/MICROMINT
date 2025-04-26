@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "d521ae97-3ea8-4c4f-aeca-de3fbe13aae4"
+      }
+    },
+    "android": {
+      "package": "com.cut0productions.micromint"
+    }
+  }
+}
