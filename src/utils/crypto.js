@@ -14,7 +14,9 @@ export const generateKeypair = () => {
 // Sign a message with a secret key
 export const signMessage = (message, secretKeyBase64) => {
   const secretKey = util.decodeBase64(secretKeyBase64);
-  const messageUint8 = util.decodeUTF8(JSON.stringify(message));
+  // Ensure message is stringified before encoding
+  const messageString = typeof message === 'string' ? message : JSON.stringify(message);
+  const messageUint8 = util.decodeUTF8(messageString);
   const signature = nacl.sign.detached(messageUint8, secretKey);
   return util.encodeBase64(signature);
 };
@@ -23,6 +25,33 @@ export const signMessage = (message, secretKeyBase64) => {
 export const verifySignature = (message, signatureBase64, publicKeyBase64) => {
   const signature = util.decodeBase64(signatureBase64);
   const publicKey = util.decodeBase64(publicKeyBase64);
-  const messageUint8 = util.decodeUTF8(JSON.stringify(message));
-  return nacl.sign.detached.verify(messageUint8, signature, publicKey);
+  // Ensure message is stringified before encoding, matching the signMessage logic
+  const messageString = typeof message === 'string' ? message : JSON.stringify(message);
+  const messageUint8 = util.decodeUTF8(messageString);
+  try {
+    return nacl.sign.detached.verify(messageUint8, signature, publicKey);
+  } catch (error) {
+    console.error("Verification failed:", error);
+    return false;
+  }
+};
+
+// Generate a random ID with an optional prefix
+export const generateRandomId = (prefix = '', length = 10) => {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let result = prefix;
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+};
+
+// Generate a random hexadecimal string
+export const generateRandomHex = (length = 32) => {
+  const chars = 'abcdef0123456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
 };

@@ -305,7 +305,7 @@ async function handleTransactions(req, res, path) {
         .toArray();
 
       // Generate transaction ID
-      const txId = 'tx_' + Date.now() + crypto.randomBytes(4).toString('hex');
+      const txId = generateRandomId('tx_', 8);
 
       // Create transaction
       const transaction = {

@@ -66,7 +66,7 @@ module.exports = async (req, res, path) => {
         .toArray();
       
       // Generate transaction ID
-      const txId = 'tx_' + Date.now() + crypto.randomBytes(4).toString('hex');
+      const txId = generateRandomId('tx_', 8);
       
       // Create transaction
       const transaction = {
@@ -458,9 +458,9 @@ module.exports = async (req, res, path) => {
         { $inc: { amount: exchangeAmount } },
         { upsert: true }
       );
-      
-      // Create transaction record
-      const txId = 'tx_' + Date.now() + crypto.randomBytes(4).toString('hex');
+
+// Replace the line with
+const txId = generateRandomId('tx_', 8);
       
       await db.collection('transactions').insertOne({
         id: txId,
