@@ -3,9 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@craco/craco": "^7.1.0",
     "autoprefixer": "^10.4.15",
     "bcryptjs": "^2.4.3",
     "crypto": "^1.0.1",
+    "crypto-browserify": "^3.12.1",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.263.1",
     "mongodb": "^6.7.0",
@@ -23,11 +25,11 @@
     "vis-network": "^9.1.9"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
-  },
+  "start": "craco start",
+  "build": "craco build",
+  "test": "craco test",
+  "eject": "react-scripts eject"
+},
   "eslintConfig": {
     "extends": [
       "react-app"
