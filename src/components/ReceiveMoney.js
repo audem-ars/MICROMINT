@@ -3,7 +3,7 @@ import { useApp } from '../contexts/AppContext';
 import Header from './Header';
 
 const ReceiveMoney = () => {
-  const { user, selectedCurrency } = useApp();
+  const { user, currentWallet, selectedCurrency } = useApp();
   const [amount, setAmount] = useState('');
   const [copied, setCopied] = useState(false);
   
@@ -16,18 +16,20 @@ const ReceiveMoney = () => {
   };
   
   const handleCopy = () => {
-    navigator.clipboard.writeText(user.id);
-    setCopied(true);
-    
-    // Reset copied state after 2 seconds
-    setTimeout(() => {
-      setCopied(false);
-    }, 2000);
+    if (currentWallet?.id) {
+      navigator.clipboard.writeText(currentWallet.id);
+      setCopied(true);
+      
+      // Reset copied state after 2 seconds
+      setTimeout(() => {
+        setCopied(false);
+      }, 2000);
+    }
   };
   
   // Generate QR code URL (placeholder - in real app would generate actual QR)
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(
-    `micromint:${user.id}${amount ? `?amount=${amount}&currency=${selectedCurrency}` : ''}`
+    `micromint:${currentWallet?.id || ''}${amount ? `?amount=${amount}&currency=${selectedCurrency}` : ''}`
   )}`;
   
   return (
@@ -47,7 +49,7 @@ const ReceiveMoney = () => {
             <input
               type="text"
               className="flex-1 p-3 border border-gray-300 rounded-l-lg bg-gray-50"
-              value={user.id}
+              value={currentWallet?.id || ''}
               readOnly
             />
             <button 
@@ -85,6 +87,7 @@ const ReceiveMoney = () => {
               <li>1. Share your QR code or Wallet ID with the sender</li>
               <li>2. The sender scans or enters your information</li>
               <li>3. Once the transaction is verified, funds will appear in your account</li>
+              <li>4. No transaction fees - verified by the Micro Mint network</li>
             </ul>
           </div>
         </div>
