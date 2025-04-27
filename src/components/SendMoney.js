@@ -1,116 +1,152 @@
-import React, { useState } from 'react';
+// src/components/SendMoney.js
+import React, { useState, useEffect } from 'react'; // Added useEffect for potential key check
 import { ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-// Keep 'user' in the destructuring below
 import { useApp } from '../contexts/AppContext';
 import Header from './Header';
-// Import the signing function
-import { signMessage } from '../utils/crypto';
+// --- Import the REAL signing function ---
+import { signMessage } from '../utils/crypto'; // Verify path is correct
 
 const SendMoney = () => {
   const navigate = useNavigate();
-  // Keep 'user' as we will now use it
-  const { balance, selectedCurrency, addTransaction, user } = useApp();
+  const { balance, selectedCurrency, addTransaction, user, currentWallet } = useApp(); // Added currentWallet
 
   const [amount, setAmount] = useState('');
   const [recipient, setRecipient] = useState('');
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [privateKeyExists, setPrivateKeyExists] = useState(false); // State to check key presence
+
+  // Check for private key on component mount (optional but good UX)
+  useEffect(() => {
+    const key = localStorage.getItem('privateKey'); // Or secure storage method
+    if (key) {
+      setPrivateKeyExists(true);
+    } else {
+      setError("Your private key is missing. Cannot send transactions. Please re-login or restore wallet.");
+    }
+  }, []);
+
 
   const handleAmountChange = (e) => {
     const value = e.target.value;
-    // Only allow numbers and decimal points
     if (/^\d*\.?\d*$/.test(value)) {
       setAmount(value);
-      setError(''); // Clear error on valid input change
+      if (error.toLowerCase().includes('amount')) setError(''); // Clear amount-related error
     }
   };
+
+  const handleRecipientChange = (e) => {
+     setRecipient(e.target.value);
+     if (error.toLowerCase().includes('recipient')) setError(''); // Clear recipient-related error
+  }
 
   const handleSubmit = async () => {
     setError(''); // Clear previous errors
 
-    // Validation
+    // --- 1. Frontend Validations ---
+    if (!privateKeyExists) {
+        setError("Cannot send: Private key is missing.");
+        return;
+    }
     if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
       setError('Please enter a valid positive amount');
       return;
     }
+    const numAmount = parseFloat(amount); // Use the parsed number going forward
 
     const trimmedRecipient = recipient.trim();
     if (!trimmedRecipient) {
       setError('Please enter a recipient wallet ID');
       return;
     }
+    // Prevent sending to self (using wallet ID from context)
+    if (currentWallet && trimmedRecipient === currentWallet.id) {
+         setError('You cannot send funds to your own wallet.');
+         return;
+    }
 
-    // Check if user has enough balance
-    const numAmount = parseFloat(amount);
-    if (numAmount > (balance[selectedCurrency] || 0)) { // Added check for undefined balance
-      setError(`Insufficient ${selectedCurrency} balance`);
+    // Check balance from context state
+    const currentBalance = balance[selectedCurrency] || 0;
+    if (numAmount > currentBalance) {
+      setError(`Insufficient ${selectedCurrency} balance. Available: ${currentBalance.toFixed(8)}`);
       return;
     }
 
     setIsLoading(true);
 
     try {
-      // --- Start: Added Signing Logic ---
+      // --- 2. Prepare Data for Signing ---
+      const trimmedNote = note.trim();
+      // Generate timestamp *just before* signing
+      // Use ISO format string, as this will be sent to backend and used in verification message
+      const transactionTimestampString = new Date().toISOString();
 
-      // 1. Construct the core transaction data
-      const transactionData = {
-        amount: numAmount,
-        currency: selectedCurrency,
-        recipient: trimmedRecipient, // Use trimmed recipient
-        note: note.trim(), // Trim note as well
-        timestamp: new Date().toISOString() // Add timestamp
+      const dataToSign = {
+          amount: numAmount, // Use number
+          currency: selectedCurrency,
+          recipient: trimmedRecipient, // Use string wallet ID
+          note: trimmedNote, // Use trimmed string
+          timestamp: transactionTimestampString // Use ISO string
       };
+      console.log("Data to Sign:", dataToSign);
 
-      // 2. Get the private key from secure storage
-      const privateKey = localStorage.getItem('privateKey'); // Ensure this is stored securely!
-
-      if (!privateKey) {
-          // Handle this more gracefully in a real app (e.g., prompt user to log in again or restore wallet)
-          throw new Error('Private key not found. Cannot sign transaction. Please ensure you are logged in correctly.');
+      // --- 3. Get Private Key ---
+      const privateKeyHex = localStorage.getItem('privateKey'); // Assuming Hex format from signup/storage
+      if (!privateKeyHex) {
+          // This check is redundant if useEffect check works, but good safety net
+          throw new Error('Private key not found locally. Cannot sign.');
       }
 
-      // 3. Sign the transaction data
-      const signature = signMessage(transactionData, privateKey);
+      // --- 4. Sign the Data ---
+      console.log("Calling signMessage...");
+      const signatureHex = signMessage(dataToSign, privateKeyHex); // Pass data object and private key hex
+      console.log("Signature generated:", signatureHex);
 
-      // 4. Add the signature to the transaction object
-      transactionData.signature = signature;
-      // Optionally include sender public key if needed by backend
-      // const publicKey = localStorage.getItem('publicKey');
-      // if (publicKey) transactionData.senderPublicKey = publicKey;
+      // --- 5. Prepare Payload for API/Context ---
+      const apiPayload = {
+          amount: numAmount,
+          currency: selectedCurrency,
+          recipient: trimmedRecipient,
+          note: trimmedNote,
+          timestamp: transactionTimestampString, // Send the exact timestamp string used for signing
+          signature: signatureHex // Send the generated hex signature
+      };
+      console.log("Payload for addTransaction context function:", apiPayload);
 
+      // --- 6. Call Context Function (which calls API) ---
+      await addTransaction(apiPayload); // Pass the complete payload
 
-      // --- End: Added Signing Logic ---
-
-      // 5. Send the signed transaction data
-      await addTransaction(transactionData); // Pass the object containing the signature
-
-      // Navigate back to dashboard on success
-      navigate('/'); // Navigate AFTER successful API call
+      // --- 7. Success Navigation ---
+      console.log("Transaction submitted successfully via context.");
+      navigate('/'); // Navigate AFTER successful submission
 
     } catch (error) {
-      console.error('Transaction failed:', error);
-      // Provide more specific error messages if possible from the error object
-      setError(error.response?.data?.message || error.message || 'Transaction failed. Please try again.');
-      setIsLoading(false); // Ensure loading is stopped on error
+      console.error('Transaction failed in SendMoney component:', error);
+      // Display more specific errors if possible
+      setError(error.message || 'Transaction failed. Please try again.');
+      setIsLoading(false); // Stop loading on error
     }
-    // No finally block needed here as navigation handles success state implicitly
+    // setIsLoading(false) is handled by navigation on success or catch block on error
   };
 
+  // --- Component Return (JSX) ---
   return (
-    <div className="flex flex-col h-screen bg-white"> {/* Use h-screen */}
-      {/* Main content area with padding and scroll */}
-      <div className="flex-1 overflow-y-auto p-6 pb-24"> {/* Added padding-bottom */}
-        <Header title="Send Money" showBack={true} />
+    <div className="flex flex-col h-screen bg-white">
+      {/* Header */}
+      <Header title="Send Money" showBack={true} />
 
-        {/* --- ADDED SENDER NAME DISPLAY --- */}
-        {user && user.name && (
-          <p className="text-sm text-gray-600 mb-4 text-center -mt-2"> {/* Pulled up slightly */}
+      {/* Scrollable Content Area */}
+      <div className="flex-1 overflow-y-auto p-6 pb-24">
+
+        {/* Sender Info */}
+        {user && (
+          <p className="text-sm text-gray-600 mb-4 text-center -mt-2">
             Sending from: <span className="font-medium">{user.name}</span>
+             {currentWallet && <span className="text-xs block text-gray-400">({currentWallet.id.substring(0,10)}...)</span>}
           </p>
         )}
-        {/* --- END OF ADDED SENDER NAME --- */}
 
         {/* Amount Input */}
         <div className="mb-6">
@@ -118,22 +154,20 @@ const SendMoney = () => {
           <div className="flex items-center border border-gray-300 rounded-lg focus-within:ring-1 focus-within:ring-blue-500 focus-within:border-blue-500">
             <input
               id="amount"
-              type="text" // Use text for better decimal input control
-              inputMode="decimal" // Hint for numeric keyboard on mobile
-              className="text-2xl font-semibold flex-1 p-3 outline-none border-none rounded-l-lg" // Adjusted size and removed internal borders
+              type="text"
+              inputMode="decimal"
+              className="text-2xl font-semibold flex-1 p-3 outline-none border-none rounded-l-lg"
               placeholder="0.00"
               value={amount}
               onChange={handleAmountChange}
-              disabled={isLoading}
-              aria-describedby="amount-error" // For accessibility
+              disabled={isLoading || !privateKeyExists} // Disable if key missing
+              aria-describedby="amount-error"
             />
-            {/* Currency Selector (Static for now) */}
             <div className="flex items-center bg-gray-100 rounded-r-lg px-3 py-1 h-full border-l border-gray-300">
               <span className="mr-1 text-sm text-gray-600">{selectedCurrency}</span>
-              <ChevronDown size={16} className="text-gray-500" />
+              <ChevronDown size={16} className="text-gray-500" /> {/* TODO: Currency selector dropdown */}
             </div>
           </div>
-          {/* Display specific validation error */}
           {error && error.toLowerCase().includes('amount') && <p id="amount-error" className="text-red-600 text-xs mt-1">{error}</p>}
         </div>
 
@@ -143,14 +177,13 @@ const SendMoney = () => {
           <input
             id="recipient"
             type="text"
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" // Consistent focus and text size
-            placeholder="Enter recipient's wallet ID"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
+            placeholder="Enter recipient's wallet ID (e.g., mm_...)"
             value={recipient}
-            onChange={(e) => { setRecipient(e.target.value); setError(''); }} // Clear error on change
-            disabled={isLoading}
+            onChange={handleRecipientChange} // Use specific handler
+            disabled={isLoading || !privateKeyExists}
             aria-describedby="recipient-error"
           />
-           {/* Display specific validation error */}
            {error && error.toLowerCase().includes('recipient') && <p id="recipient-error" className="text-red-600 text-xs mt-1">{error}</p>}
         </div>
 
@@ -164,21 +197,28 @@ const SendMoney = () => {
             placeholder="Add a message for the recipient"
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            disabled={isLoading}
+            disabled={isLoading || !privateKeyExists}
           />
         </div>
-         {/* Display general errors (balance, signing, network, etc.) */}
-         {error && !(error.toLowerCase().includes('amount') || error.toLowerCase().includes('recipient')) && (
-            <p className="text-red-600 text-sm text-center mb-4">{error}</p>
-         )}
-      </div>
+
+        {/* General Error Display */}
+        {error && !(error.toLowerCase().includes('amount') || error.toLowerCase().includes('recipient')) && (
+           <p className="text-red-600 text-sm text-center mb-4">{error}</p>
+        )}
+         {!privateKeyExists && ( // Specific warning if key is missing
+            <p className="text-red-600 text-sm text-center mb-4 font-semibold">Private key missing. Sending disabled.</p>
+        )}
+
+      </div> {/* End Scrollable Content */}
+
 
       {/* Fixed Bottom Button Area */}
       <div className="p-4 bg-white border-t border-gray-200">
         <button
           className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-medium transition duration-150 ease-in-out disabled:opacity-60 disabled:cursor-not-allowed"
           onClick={handleSubmit}
-          disabled={isLoading || !amount || !recipient.trim() || parseFloat(amount) <= 0} // More robust disable condition
+          // Disable button if loading, missing required fields, amount is zero, or private key missing
+          disabled={isLoading || !amount || !recipient.trim() || parseFloat(amount) <= 0 || !privateKeyExists}
         >
           {isLoading ? (
             <div className="flex items-center justify-center">
@@ -189,11 +229,12 @@ const SendMoney = () => {
               <span>Processing...</span>
             </div>
           ) : (
-            'Send Now' // Changed button text
+            'Send Now'
           )}
         </button>
-      </div>
-    </div>
+      </div> {/* End Button Area */}
+
+    </div> // End Main Container
   );
 };
 
