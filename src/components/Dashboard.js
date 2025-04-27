@@ -123,29 +123,36 @@ const Dashboard = () => {
                     <label className="block text-xs font-medium text-gray-500 mb-1">Wallet ID</label>
                     <p className="text-sm font-mono text-gray-700 break-all">{currentWallet.id || 'N/A'}</p>
                 </div>
-                {/* Public Key */}
-                {/* Check specifically for publicKey existence */}
-                {publicKey ? (
+                                {/* Public Key */}
+                                {publicKey ? (
                     <div>
                         <label className="block text-xs font-medium text-gray-500 mb-1">Public Key (Hex)</label>
                         {showPubKey ? (
+                            // --- WHEN SHOWN ---
                             <div className="flex items-center space-x-2">
-                                <span className="text-sm font-mono text-gray-700 break-all flex-1">{publicKey}</span>
+                                <span className="text-sm font-mono text-gray-700 break-all flex-1">{publicKey}</span> {/* Show full key */}
+                                {/* Hide Button */}
                                 <button onClick={() => setShowPubKey(false)} title="Hide Public Key" className="text-gray-400 hover:text-gray-600 p-1 rounded focus:outline-none focus:ring-1 focus:ring-blue-500">
                                     <EyeOff size={16} />
                                 </button>
+                                {/* Copy Button */}
                                 <button onClick={handleCopyPubKey} title="Copy Public Key" className="text-blue-500 hover:text-blue-700 p-1 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed" disabled={copiedPubKey}>
                                     {copiedPubKey ? <span className="text-xs">Copied!</span> : <Copy size={16} />}
                                 </button>
                             </div>
                         ) : (
+                            // --- WHEN HIDDEN ---
                             <div className="flex items-center space-x-2">
                                 <span className="text-sm font-mono text-gray-500 flex-1">
-                                    {publicKey.substring(0, 8)}...{publicKey.substring(publicKey.length - 8)}
+                                     {/* Correct Truncation: Show first few + ... + last few */}
+                                     {/* Adjust numbers (e.g., 6 and 6) if your keys are longer/shorter */}
+                                     {publicKey.length > 12 ? `${publicKey.substring(0, 6)}...${publicKey.substring(publicKey.length - 6)}` : publicKey}
                                 </span>
+                                {/* Show Button */}
                                 <button onClick={() => setShowPubKey(true)} title="Show Public Key" className="text-gray-400 hover:text-gray-600 p-1 rounded focus:outline-none focus:ring-1 focus:ring-blue-500">
                                     <Eye size={16} />
                                 </button>
+                                {/* Copy Button (still works when hidden) */}
                                  <button onClick={handleCopyPubKey} title="Copy Public Key" className="text-blue-500 hover:text-blue-700 p-1 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed" disabled={copiedPubKey}>
                                     {copiedPubKey ? <span className="text-xs">Copied!</span> : <Copy size={16} />}
                                  </button>
