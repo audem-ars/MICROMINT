@@ -4,74 +4,68 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
 import Header from './Header';
 import Navigation from './Navigation';
-import { User, LogOut, ShieldCheck, Palette, Info, ExternalLink, Trash2 } from 'lucide-react'; // Example icons
+// Icons remain the same
+import { User, LogOut, ShieldCheck, Palette, Info, Trash2 } from 'lucide-react';
 
 const Settings = () => {
-  const { user, logout, currentWallet } = useApp(); // Get user, logout fn, and wallet
-  const navigate = useNavigate();
+  const { user, logout, currentWallet } = useApp();
+  const navigate = useNavigate(); // Get navigate function
 
   // --- Logout Handler ---
   const handleLogout = () => {
     console.log("Settings: Calling logout function...");
     logout();
-    // No need to navigate here, ProtectedRoute in App.js will handle redirection
-    // navigate('/login'); // This might cause issues if context clears slightly later
   };
 
-  // --- Placeholder Handlers for Other Settings ---
-  // Replace these with navigation or modal logic for real settings
-  const handleProfileClick = () => alert('Navigate to Profile Edit page (Not Implemented)');
-  const handleSecurityClick = () => alert('Navigate to Security Settings page (Not Implemented)');
-  const handleAppearanceClick = () => alert('Open Appearance Settings (Not Implemented)');
-  const handleAboutClick = () => alert('Show About/Info Modal (Not Implemented)');
+  // --- UPDATE Handlers to Navigate ---
+  const handleProfileClick = () => navigate('/settings/profile');
+  const handleSecurityClick = () => navigate('/settings/security');
+  const handleAppearanceClick = () => navigate('/settings/appearance');
+  const handleAboutClick = () => navigate('/settings/about');
   const handleDeleteAccountClick = () => {
-     // !! IMPORTANT: Add a confirmation dialog here before proceeding !!
-     if(window.confirm("Are you absolutely sure you want to delete your account? This action cannot be undone.")) {
-         alert('Call account deletion API (Not Implemented)');
+     if(window.confirm("Are you absolutely sure you want to delete your account? This action cannot be undone and is permanent.")) {
+         console.error('Account deletion requested but API endpoint is not implemented!');
+         alert('Account deletion feature not yet available.');
          // Implement backend API call for deletion, then logout
-         // logout();
+         // const success = await api.deleteAccount(token);
+         // if (success) logout();
      }
   };
 
 
   return (
     <div className="flex flex-col h-screen bg-gray-100">
-      {/* Use the standard Header */}
-      <Header title="Settings" showBack={true} showUser={false} /* Hide profile icon on settings page itself */ />
+      <Header title="Settings" showBack={true} showUser={false} />
 
-      {/* Scrollable Content Area */}
       <div className="flex-1 overflow-y-auto p-4 pb-20">
 
-        {/* User Info Section */}
+        {/* User Info Section (remains the same) */}
         {user && (
           <div className="bg-white p-4 rounded-lg shadow mb-6 flex items-center space-x-4 border border-gray-200">
-             {/* User Avatar/Initial */}
              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center text-xl font-medium uppercase shadow-sm">
                 {user.name ? user.name.charAt(0) : '?'}
              </div>
-             {/* User Details */}
              <div>
                 <p className="font-semibold text-gray-800 text-lg">{user.name || 'User Name'}</p>
                 <p className="text-sm text-gray-500">{user.email || 'user@example.com'}</p>
-                {/* Display truncated Wallet ID if available */}
                 {currentWallet?.id && <p className="text-xs text-gray-400 mt-1">Wallet: {currentWallet.id.substring(0, 10)}...</p>}
              </div>
           </div>
         )}
 
-        {/* Settings Options List */}
+        {/* Settings Options List (onClicks updated) */}
         <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden mb-6">
            <ul className="divide-y divide-gray-100">
               {/* Profile */}
-              <li onClick={handleProfileClick} className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center transition duration-150 ease-in-out">
+              <li onClick={handleProfileClick} className="px-4 py-3 hover:bg-gray-50 active:bg-gray-100 cursor-pointer flex justify-between items-center transition duration-150 ease-in-out">
                  <div className="flex items-center space-x-3">
                     <User size={18} className="text-gray-500" />
                     <span className="text-sm text-gray-700">Profile</span>
                  </div>
-                 <ChevronRight size={18} className="text-gray-400" /> {/* Use ChevronRight */}
+                 <ChevronRight size={18} className="text-gray-400" />
               </li>
                {/* Security */}
-              <li onClick={handleSecurityClick} className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center transition duration-150 ease-in-out">
+              <li onClick={handleSecurityClick} className="px-4 py-3 hover:bg-gray-50 active:bg-gray-100 cursor-pointer flex justify-between items-center transition duration-150 ease-in-out">
                  <div className="flex items-center space-x-3">
                     <ShieldCheck size={18} className="text-gray-500" />
                     <span className="text-sm text-gray-700">Security & Privacy</span>
@@ -79,7 +73,7 @@ const Settings = () => {
                  <ChevronRight size={18} className="text-gray-400" />
               </li>
               {/* Appearance */}
-              <li onClick={handleAppearanceClick} className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center transition duration-150 ease-in-out">
+              <li onClick={handleAppearanceClick} className="px-4 py-3 hover:bg-gray-50 active:bg-gray-100 cursor-pointer flex justify-between items-center transition duration-150 ease-in-out">
                  <div className="flex items-center space-x-3">
                     <Palette size={18} className="text-gray-500" />
                     <span className="text-sm text-gray-700">Appearance</span>
@@ -87,7 +81,7 @@ const Settings = () => {
                  <ChevronRight size={18} className="text-gray-400" />
               </li>
                {/* About */}
-              <li onClick={handleAboutClick} className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center transition duration-150 ease-in-out">
+              <li onClick={handleAboutClick} className="px-4 py-3 hover:bg-gray-50 active:bg-gray-100 cursor-pointer flex justify-between items-center transition duration-150 ease-in-out">
                  <div className="flex items-center space-x-3">
                     <Info size={18} className="text-gray-500" />
                     <span className="text-sm text-gray-700">About Micro Mint</span>
@@ -97,7 +91,7 @@ const Settings = () => {
            </ul>
         </div>
 
-        {/* Logout Button */}
+        {/* Logout Button (remains the same) */}
         <div className="mb-6">
           <button
             onClick={handleLogout}
@@ -108,31 +102,27 @@ const Settings = () => {
           </button>
         </div>
 
-         {/* Delete Account Button (Dangerous Action) */}
+         {/* Delete Account Button (remains the same) */}
         <div className="text-center">
             <button
                 onClick={handleDeleteAccountClick}
-                className="text-xs text-gray-400 hover:text-red-500 hover:underline"
+                className="text-xs text-gray-400 hover:text-red-500 hover:underline focus:outline-none focus:ring-1 focus:ring-red-500 rounded"
             >
                 Delete Account
             </button>
         </div>
+      </div>
 
-
-      </div> {/* End Scrollable Area */}
-
-      {/* Navigation */}
       <Navigation />
-    </div> // End Main Container
+    </div>
   );
 };
 
-// Need ChevronRight for the list items
+// ChevronRight component (remains the same)
 const ChevronRight = ({ size = 18, className = "" }) => (
     <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
         <polyline points="9 18 15 12 9 6"></polyline>
     </svg>
 );
-
 
 export default Settings;
