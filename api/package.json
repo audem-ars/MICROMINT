@@ -1,0 +1,14 @@
+{
+  "name": "micro-mint-api",
+  "version": "1.0.0",
+  "description": "API for MicroMint",
+  "main": "index.js",
+  "scripts": {
+    "build": "echo 'No build required for API'"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^5.9.2"
+  }
+}
