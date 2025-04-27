@@ -1,69 +1,95 @@
 /**
  * Web Worker for transaction verification
- * This simulates the computational work required to verify transactions
+ * This simulates computational work with non-blocking progress updates.
  */
 
-// Simulate verification work
-function verifyTransaction(transaction) {
-    // Calculate a dummy proof of work
-    // In a real implementation, this would actually verify transaction signatures and validity
-    const startTime = Date.now();
-    let iterations = 0;
-    let hash = transaction.id;
-    
-    // Do some computational work
-    while (Date.now() - startTime < 1000) { // Work for 1 second
-      hash = performHashCalculation(hash, transaction);
-      iterations++;
-    }
-    
-    return {
-      transactionId: transaction.id,
-      iterations,
-      timeElapsed: Date.now() - startTime,
-      result: 'verified',
-      proofHash: hash
-    };
+let verificationIntervalId = null;
+let currentProgress = 0;
+const totalDuration = 1500; // Target duration in milliseconds (e.g., 1.5 seconds)
+const updateInterval = 50;  // Update progress every 50ms
+
+// Simulate hash calculation (simplified - same as before)
+function performHashCalculation(previousHash, transaction) {
+  let result = '';
+  const chars = 'abcdef0123456789';
+  for (let i = 0; i < 64; i++) {
+    const index = (previousHash.charCodeAt(i % previousHash.length) +
+                  (transaction.amount || 0) * 1000 + i) % chars.length; // Added check for amount
+    result += chars[Math.floor(index)];
   }
-  
-  // Simulate hash calculation (simplified)
-  function performHashCalculation(previousHash, transaction) {
-    let result = '';
-    const chars = 'abcdef0123456789';
-    
-    // Simple string manipulation to simulate hashing
-    for (let i = 0; i < 64; i++) {
-      const index = (previousHash.charCodeAt(i % previousHash.length) + 
-                    transaction.amount * 1000 + i) % chars.length;
-      result += chars[Math.floor(index)];
-    }
-    
-    return result;
+  return result;
+}
+
+// Function to start the simulated verification process
+function startVerification(transaction) {
+  console.log("[Worker] Starting verification for:", transaction.id);
+  currentProgress = 0;
+  let elapsedTime = 0;
+  let hash = transaction.id || ''; // Start hash from ID
+  let iterations = 0;
+  const startTime = Date.now();
+
+  // Clear any previous interval
+  if (verificationIntervalId) {
+    clearInterval(verificationIntervalId);
   }
-  
-  // Listen for messages from main thread
-  self.addEventListener('message', function(e) {
-    const { command, transaction } = e.data;
-    
-    if (command === 'verify') {
-      // Send periodic progress updates
-      const intervalId = setInterval(() => {
-        self.postMessage({
-          type: 'progress',
-          progress: Math.random() * 100
-        });
-      }, 100);
-      
-      // Do verification work
-      const result = verifyTransaction(transaction);
-      
-      // Clear the interval
-      clearInterval(intervalId);
-      
+
+  verificationIntervalId = setInterval(() => {
+    elapsedTime += updateInterval;
+    currentProgress = Math.min(100, (elapsedTime / totalDuration) * 100);
+
+    // Perform a small chunk of work (doesn't need to be accurate, just simulates activity)
+    for(let i = 0; i < 5000; i++) { // Adjust loop count to simulate load if needed
+        hash = performHashCalculation(hash, transaction);
+        iterations++;
+    }
+
+
+    // Send progress update
+    self.postMessage({
+      type: 'progress',
+      progress: currentProgress
+    });
+
+    // Check if verification is complete
+    if (currentProgress >= 100) {
+      clearInterval(verificationIntervalId);
+      verificationIntervalId = null;
+      const endTime = Date.now();
+      console.log("[Worker] Verification complete for:", transaction.id);
+
       // Send final result
       self.postMessage({
         type: 'result',
-        verification: result
+        verification: {
+          transactionId: transaction.id,
+          iterations: iterations, // More realistic iteration count
+          timeElapsed: endTime - startTime, // Actual elapsed time
+          result: 'verified',
+          proofHash: hash // Final hash
+        }
       });
     }
-  });
+  }, updateInterval);
+}
+
+// Listen for messages from main thread
+self.addEventListener('message', function(e) {
+  const { command, transaction } = e.data;
+  console.log("[Worker] Received command:", command, "Data:", transaction); // Log received message
+
+  if (command === 'verify' && transaction) {
+     // Basic check for needed transaction properties
+     if (typeof transaction.id === 'undefined' || typeof transaction.amount === 'undefined') {
+        console.error("[Worker] Invalid transaction data received:", transaction);
+        // Optionally send an error back
+        // self.postMessage({ type: 'error', message: 'Invalid transaction data received by worker.' });
+        return;
+     }
+     startVerification(transaction);
+  } else {
+     console.warn("[Worker] Unknown command or missing transaction data:", e.data);
+  }
+});
+
+console.log("[Worker] Verification worker script loaded and listening."); // Log on load
