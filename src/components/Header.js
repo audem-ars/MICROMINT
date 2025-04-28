@@ -19,7 +19,7 @@ const Header = ({ title, showBack = false, showUser = true, userName = 'User', s
   };
 
   const goToSettings = () => {
-    console.log("Profile icon clicked, navigating to /settings");
+    console.log("Profile icon clicked, navigating to /settings"); // Your log
     navigate('/settings');
   };
 
@@ -27,20 +27,21 @@ const Header = ({ title, showBack = false, showUser = true, userName = 'User', s
   const handleCurrencyChange = (newCurrency) => {
      if (setSelectedCurrency) {
          setSelectedCurrency(newCurrency);
-         console.log("Currency changed to:", newCurrency);
+         console.log("Currency changed to:", newCurrency); // Your log
      }
   };
 
   return (
-    // Use sticky header? `sticky top-0 z-10` can work but needs careful layout adjustments in parent
-    <div className="flex items-center justify-between h-16 px-4 bg-white border-b border-gray-200">
+    // --- MODIFIED: Added dark background and border ---
+    <div className="flex items-center justify-between h-16 px-4 bg-white border-b border-gray-200 dark:bg-gray-800 dark:border-gray-700">
 
       {/* Left Side: Back Button or Placeholder */}
       <div className="w-10"> {/* Fixed width for alignment */}
         {showBack ? (
           <button
             onClick={handleBack}
-            className="p-2 rounded-full hover:bg-gray-100 text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            // --- MODIFIED: Added dark hover background, text, focus ring ---
+            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
             aria-label="Go back"
           >
             <ArrowLeft size={20} />
@@ -55,13 +56,16 @@ const Header = ({ title, showBack = false, showUser = true, userName = 'User', s
       <div className="flex-1 text-center">
           {showCurrency && setSelectedCurrency ? (
               // Example Currency Dropdown (Needs proper implementation)
-              <button className="flex items-center justify-center mx-auto font-semibold text-lg">
+              // --- MODIFIED: Added dark text ---
+              <button className="flex items-center justify-center mx-auto font-semibold text-lg text-gray-800 dark:text-gray-100">
                   <span>{selectedCurrency}</span>
-                  <ChevronDown size={18} className="ml-1 opacity-50" />
+                   {/* --- MODIFIED: Added dark text --- */}
+                  <ChevronDown size={18} className="ml-1 opacity-50 dark:opacity-70" />
               </button>
               // Replace button with a real <select> or custom dropdown component
           ) : (
-              <h1 className="text-lg font-semibold text-gray-800 truncate">{title}</h1>
+               // --- MODIFIED: Added dark text ---
+              <h1 className="text-lg font-semibold text-gray-800 dark:text-gray-100 truncate">{title}</h1>
           )}
       </div>
 
@@ -71,13 +75,14 @@ const Header = ({ title, showBack = false, showUser = true, userName = 'User', s
         {showUser ? (
           <button
             onClick={goToSettings}
-            className="p-1 rounded-full hover:bg-gray-100 text-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500"
+            // --- MODIFIED: Added dark hover background, focus ring ---
+            className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-gray-800 focus:ring-blue-500 dark:focus:ring-blue-400"
             aria-label="User Settings"
           >
             {/* Option 1: Generic User Icon */}
             {/* <UserCircle size={24} strokeWidth={1.5} /> */}
 
-            {/* Option 2: User Initial */}
+            {/* Option 2: User Initial (Gradient likely ok, text is white) */}
             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center text-sm font-medium uppercase shadow-sm">
                 {userName ? userName.charAt(0) : '?'}
             </div>

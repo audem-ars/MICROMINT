@@ -1,3 +1,4 @@
+// src/components/Navigation.js
 import React from 'react';
 // Make sure Settings is imported (it is in your provided code)
 import { Activity, Plus, Settings, Network, BarChart2, LogOut } from 'lucide-react';
@@ -9,18 +10,30 @@ const Navigation = () => {
   const location = useLocation();
   const { logout } = useApp();
 
-  const isActive = (path) => location.pathname === path;
+  const isActive = (path) => location.pathname === path || (path === '/settings' && location.pathname.startsWith('/settings/')); // Make settings active for subroutes too
+
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
+   // Helper function for button classes
+   const getButtonClasses = (path) => {
+     // --- MODIFIED: Added dark text for active/inactive ---
+     return `flex flex-col items-center text-xs transition-colors duration-150 ease-in-out ${
+       isActive(path)
+         ? 'text-blue-600 dark:text-blue-400' // Active color
+         : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200' // Inactive color + hover
+     }`;
+   };
+
   return (
-    <div className="bg-white border-t border-gray-200 p-4 flex justify-around">
+    // --- MODIFIED: Added dark background and border ---
+    <div className="bg-white border-t border-gray-200 p-4 flex justify-around dark:bg-gray-800 dark:border-gray-700">
       {/* Activity Button */}
       <button
-        className={`flex flex-col items-center text-xs ${isActive('/') ? 'text-blue-600' : 'text-gray-500'}`}
+        className={getButtonClasses('/')}
         onClick={() => navigate('/')}
       >
         <Activity size={20} className="mb-1" />
@@ -29,7 +42,7 @@ const Navigation = () => {
 
       {/* Verify Button */}
       <button
-        className={`flex flex-col items-center text-xs ${isActive('/verify') ? 'text-blue-600' : 'text-gray-500'}`}
+        className={getButtonClasses('/verify')}
         onClick={() => navigate('/verify')}
       >
         <Plus size={20} className="mb-1" />
@@ -38,7 +51,7 @@ const Navigation = () => {
 
       {/* Graph Button */}
       <button
-        className={`flex flex-col items-center text-xs ${isActive('/graph') ? 'text-blue-600' : 'text-gray-500'}`}
+        className={getButtonClasses('/graph')}
         onClick={() => navigate('/graph')}
       >
         <Network size={20} className="mb-1" />
@@ -47,26 +60,26 @@ const Navigation = () => {
 
       {/* Analytics Button */}
       <button
-        className={`flex flex-col items-center text-xs ${isActive('/analytics') ? 'text-blue-600' : 'text-gray-500'}`}
+        className={getButtonClasses('/analytics')}
         onClick={() => navigate('/analytics')}
       >
         <BarChart2 size={20} className="mb-1" />
         <span>Analytics</span>
       </button>
 
-      {/* Settings Button - ADDED HERE */}
+      {/* Settings Button */}
       <button
-        className={`flex flex-col items-center text-xs ${isActive('/settings') ? 'text-blue-600' : 'text-gray-500'}`}
+         className={getButtonClasses('/settings')} // Uses '/settings' for isActive check
         onClick={() => navigate('/settings')}
       >
         <Settings size={20} className="mb-1" />
         <span>Settings</span>
       </button>
-      {/* End of Added Settings Button */}
 
       {/* Logout Button */}
+       {/* --- MODIFIED: Added dark text and hover --- */}
       <button
-        className="flex flex-col items-center text-xs text-gray-500"
+        className="flex flex-col items-center text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
         onClick={handleLogout}
       >
         <LogOut size={20} className="mb-1" />
