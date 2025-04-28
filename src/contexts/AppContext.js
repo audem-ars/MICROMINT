@@ -1,184 +1,183 @@
 // src/contexts/AppContext.js
 import React, { createContext, useState, useEffect, useContext } from 'react';
-// The comment below was in the code you provided - assuming WebSockets are currently not active based on this.
-// REMOVED: import io from 'socket.io-client';
-import * as api from '../services/api';
+// REMOVED: import io from 'socket.io-client'; // Assuming still removed
+import * as api from '../services/api'; // Assuming api.js handles the actual fetch calls
 
 // Create the context
 const AppContext = createContext();
 
-// --- ADDED: Helper function to get initial theme ---
-const getInitialTheme = () => {
-  if (typeof window !== 'undefined') {
-    const storedTheme = localStorage.getItem('theme');
-    if (storedTheme && ['light', 'dark'].includes(storedTheme)) {
-      return storedTheme;
-    }
-    // Optional: Check system preference (uncomment if desired)
-    // if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    //   return 'dark';
-    // }
-  }
-  return 'light'; // Default theme
-};
-// --- END ADDED HELPER ---
+// --- Helper function to get initial theme (Your function) ---
+const getInitialTheme = () => { /* ... */ };
 
 // Provider component
 export const AppProvider = ({ children }) => {
   const [currentWallet, setCurrentWallet] = useState(null);
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token'));
-  const [balance, setBalance] = useState({
-    USD: 0,
-    EUR: 0,
-    MM: 0 // Assuming MM is a default currency
-  });
-
+  // --- State for Private Key (In-Memory - Better than localStorage but still temporary) ---
+  // --- IMPORTANT: This key will be lost on page refresh. Needs secure persistent storage for production. ---
+  const [transientPrivateKey, setTransientPrivateKey] = useState(null);
+  // -----------------------------------------------------------------------------------------
+  const [balance, setBalance] = useState({ USD: 0, EUR: 0, MM: 0 });
   const [selectedCurrency, setSelectedCurrency] = useState('USD');
   const [transactions, setTransactions] = useState([]);
   const [pendingVerifications, setPendingVerifications] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // --- ADDED: Theme state ---
   const [theme, setThemeState] = useState(getInitialTheme);
-  // --- END ADDED ---
 
-  // --- ADDED: Theme Effect ---
-  useEffect(() => {
-    // Apply theme class to root element (<html>)
-    const root = window.document.documentElement;
-    root.classList.remove(theme === 'light' ? 'dark' : 'light');
-    root.classList.add(theme);
-    localStorage.setItem('theme', theme); // Persist theme choice
-  }, [theme]);
-  // --- END ADDED ---
+  // --- Theme Effect (Your effect) ---
+  useEffect(() => { /* ... */ }, [theme]);
 
-  // Initialize from token (Your original useEffect)
+  // --- Initialize from token (Your effect - NO CHANGES NEEDED HERE YET) ---
+  // It fetches user and wallet data AFTER login/refresh based on token.
+  // It does NOT handle fetching the private key.
   useEffect(() => {
     const initializeFromToken = async () => {
-      // Make sure loading is true at the start only if a token exists
-      if (token) {
-          setLoading(true);
-          try {
-              // Validate token and get user data
-              const userData = await api.getUserData(token);
-              setUser(userData); // Set user state
+        if (token) {
+            setLoading(true);
+            try {
+                // Fetch user data using the token
+                const userData = await api.getUserData(token); // Assumes api.getUserData exists
+                setUser(userData);
 
-              // Get wallet data only if userData and walletId exist
-              if (userData && userData.walletId) {
-                  const wallet = await api.getWallet(userData.walletId, token);
-                  setCurrentWallet(wallet); // Set wallet state
+                // Fetch wallet data if user and walletId exist
+                if (userData && userData.walletId) {
+                    const wallet = await api.getWallet(userData.walletId, token); // Assumes api.getWallet exists
+                    setCurrentWallet(wallet);
+                    setBalance(wallet.balances || { USD: 0, EUR: 0, MM: 0 });
 
-                  // Set balances from the fetched wallet data
-                  setBalance(wallet.balances || { USD: 0, EUR: 0, MM: 0 });
+                    // Fetch transactions & pending verifications
+                    const [txHistory, pendingVers] = await Promise.all([
+                        api.getTransactions(userData.walletId, token), // Assumes api.getTransactions exists
+                        api.getPendingVerifications(3, token) // Assumes api.getPendingVerifications exists
+                    ]);
+                    setTransactions(txHistory);
+                    setPendingVerifications(pendingVers);
 
-                  // Load transaction history
-                  const txHistory = await api.getTransactions(userData.walletId, token);
-                  setTransactions(txHistory);
-
-                  // Load pending verifications
-                  const pendingVers = await api.getPendingVerifications(3, token);
-                  setPendingVerifications(pendingVers);
-
-              } else {
-                   // Handle case where user exists but walletId is missing (might be an error state)
-                   console.error("User data fetched, but walletId is missing:", userData);
-                   // Clear wallet-specific state
-                   setCurrentWallet(null);
-                   setBalance({ USD: 0, EUR: 0, MM: 0 });
-                   setTransactions([]);
-                   setPendingVerifications([]);
-              }
-
-          } catch (error) {
-              console.error('Error initializing from token:', error);
-              // Invalid token or API error, clear everything
-              localStorage.removeItem('token');
-              setToken(null);
-              setUser(null);
-              setCurrentWallet(null);
-              setBalance({ USD: 0, EUR: 0, MM: 0 });
-              setTransactions([]);
-              setPendingVerifications([]);
-          } finally {
-              setLoading(false); // Stop loading indicator regardless of outcome
-          }
-      } else {
-        // No token, ensure everything is cleared and not loading
-        setLoading(false);
-        setUser(null);
-        setCurrentWallet(null);
-        setBalance({ USD: 0, EUR: 0, MM: 0 });
-        setTransactions([]);
-        setPendingVerifications([]);
-      }
+                } else {
+                    console.error("User data fetched, but walletId is missing:", userData);
+                    setCurrentWallet(null);
+                    setBalance({ USD: 0, EUR: 0, MM: 0 });
+                    setTransactions([]);
+                    setPendingVerifications([]);
+                }
+            } catch (error) {
+                console.error('Error initializing from token:', error);
+                // Clear sensitive info on error
+                localStorage.removeItem('token');
+                setToken(null);
+                setUser(null);
+                setCurrentWallet(null);
+                setBalance({ USD: 0, EUR: 0, MM: 0 });
+                setTransactions([]);
+                setPendingVerifications([]);
+                setTransientPrivateKey(null); // Clear private key state on error
+            } finally {
+                setLoading(false);
+            }
+        } else {
+            // No token: Clear all state including private key
+            setLoading(false);
+            setUser(null);
+            setCurrentWallet(null);
+            setBalance({ USD: 0, EUR: 0, MM: 0 });
+            setTransactions([]);
+            setPendingVerifications([]);
+            setToken(null);
+            setTransientPrivateKey(null); // Clear private key state
+        }
     };
-
     initializeFromToken();
   }, [token]); // Re-run only when token changes
 
 
-  // --- WebSocket Integration Block REMOVED --- (This comment was in your original code)
-
-
-  // Login function (Your original function)
+  // --- Login function ---
+  // Login only returns token and user data, NOT the private key
   const login = async (email, password) => {
-    // No setLoading(true) here, initializeFromToken handles it
     try {
+      // api.login now calls POST /api/auth/login via your api service
       const result = await api.login(email, password);
       localStorage.setItem('token', result.token);
-      setToken(result.token); // This triggers the initialization useEffect
-      return result; // Return result for potential component use
-    } catch (error) {
-      console.error('Login error:', error);
-      // setLoading(false); // No need, initializeFromToken handles it
-      throw error; // Re-throw for component handling
-    }
-  };
-
-  // Signup function (Your original function)
-  const signup = async (email, password, name) => {
-     // No setLoading(true) here, initializeFromToken handles it
-    try {
-      const result = await api.signup(email, password, name);
-      localStorage.setItem('token', result.token);
-      setToken(result.token); // This triggers the initialization useEffect
+      setToken(result.token); // Triggers initializeFromToken
+      // DO NOT expect private key here
+      setTransientPrivateKey(null); // Ensure any previous key state is cleared on login
       return result;
     } catch (error) {
-      console.error('Signup error:', error);
-       // setLoading(false); // No need, initializeFromToken handles it
+      console.error('Login error:', error);
+      setTransientPrivateKey(null); // Clear key state on error
       throw error;
     }
   };
 
-  // Logout function (Your original function)
-  const logout = () => {
-    console.log("Logging out..."); // Added log
-    localStorage.removeItem('token');
-    setToken(null); // Triggers initializeFromToken useEffect to clear state
-    // Explicitly clear state immediately for better UX is already handled by initializeFromToken
+  // --- Signup function (MODIFIED) ---
+  // Now expects privateKey in the result and stores it temporarily
+  const signup = async (email, password, name) => {
+    try {
+      // api.signup now calls POST /api/auth/signup via your api service
+      const result = await api.signup(email, password, name); // Assumes api.signup makes the call
+
+      // --- Store token and SET private key ---
+      localStorage.setItem('token', result.token);
+      if (result.privateKey) {
+          console.log("Received private key on signup, storing temporarily in state.");
+          setTransientPrivateKey(result.privateKey); // Store in temporary state
+          // SECURITY WARNING: Remove from localStorage immediately if it was ever stored there
+          // localStorage.removeItem('privateKey');
+      } else {
+           console.error("Signup successful but private key missing from response!");
+           // Handle this error state - maybe force logout?
+           setTransientPrivateKey(null);
+           // Optionally throw an error or clear token?
+           // throw new Error("Signup failed: Private key not received.");
+      }
+      setToken(result.token); // Triggers initializeFromToken
+      // ------------------------------------
+      return result; // Return original result (excluding private key if desired)
+    } catch (error) {
+      console.error('Signup error:', error);
+      setTransientPrivateKey(null); // Clear key state on error
+      throw error;
+    }
   };
 
-  // Functions to update state (API Calls)
-  // NOTE: Without WebSockets, these actions won't reflect in real-time automatically
-  // unless followed by a manual refreshData() call. (This comment was in your original code)
+  // --- Logout function (MODIFIED) ---
+  const logout = () => {
+    console.log("Logging out...");
+    localStorage.removeItem('token');
+    setToken(null); // Triggers initializeFromToken to clear user/wallet/tx state
+    setTransientPrivateKey(null); // --- Explicitly clear private key state ---
+  };
+
+  // --- addTransaction (MODIFIED) ---
+  // Now needs to get the private key from state, not localStorage
   const addTransaction = async (transactionDetails) => {
     try {
+      // --- Get private key from state ---
+      if (!transientPrivateKey) {
+          throw new Error('Private key not available in application state. Please login again or restore wallet.');
+      }
+       // --------------------------------
       if (!currentWallet || !token) {
         throw new Error('No active wallet or not authenticated');
       }
+
+      // Payload construction remains the same
       const apiPayload = {
           amount: transactionDetails.amount,
           currency: transactionDetails.currency,
           recipientWalletId: transactionDetails.recipient,
           note: transactionDetails.note || '',
           timestamp: transactionDetails.timestamp,
-          signature: transactionDetails.signature,
+          signature: transactionDetails.signature, // Signature already generated by SendMoney component
       };
+
+      // api.createTransaction calls POST /api/transactions
       const result = await api.createTransaction(apiPayload, token);
       console.log('addTransaction API call successful:', result);
-      // Consider calling refreshData() here if immediate update is needed without WS
-      // await refreshData();
+
+      // Refresh data to see the new transaction and updated balance
+      await refreshData(); // Refresh after successful send
+
       return result.transaction;
     } catch (error) {
       console.error('Transaction failed (addTransaction context):', error);
@@ -186,113 +185,124 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  // verifyTransaction (Your original function)
+  // --- verifyTransaction (MODIFIED) ---
+  // Needs to call the new backend endpoint
   const verifyTransaction = async (transactionId) => {
     try {
-      if (!currentWallet || !token) {
-        throw new Error('No active wallet or not authenticated');
+      if (!token) { // Check only for token, wallet isn't strictly needed for verification API call
+        throw new Error('Not authenticated');
       }
-      const result = await api.verifyTransaction(transactionId, token);
-      console.log('Verification API call successful:', result);
+
+      // --- Make API call to backend verify endpoint ---
+      // Assumes you create an api.submitVerification function in src/services/api.js
+      // This function should make a POST request to '/api/transactions/verify' (or your chosen path)
+      // sending { transactionId } in the body and the auth token.
+      console.log(`Context: Calling API to submit verification for ${transactionId}`);
+      const result = await api.submitVerification(transactionId, token); // Pass ID and token
+      console.log('Verification submission API call successful:', result);
+      // ----------------------------------------------
+
       // Remove from pending locally immediately for better UX
+      // Note: The backend now handles the state change, but removing locally gives instant feedback
       setPendingVerifications(current =>
-        current.filter(v => (v.id || v._id || v.transactionId) !== transactionId) // Handle different possible ID fields
+        current.filter(v => (v.id || v._id || v.transactionId) !== transactionId)
       );
-      // Refresh data to get updated balance (potential reward) and maybe new pending txns
+
+      // Refresh data to get updated MM balance (reward) and potentially new pending txns
       await refreshData();
-      return result.reward; // Assuming API returns reward info
+
+      return result.rewardCredited; // Return reward amount from API response
     } catch (error) {
-      console.error('Verification failed:', error);
-      throw error;
+      console.error('Verification submission failed (context):', error);
+      // Consider providing more specific feedback based on error type
+      alert(`Verification failed: ${error.response?.data?.error || error.message}`); // Show error from API if possible
+      throw error; // Re-throw for component handling if needed
     }
   };
 
-  // Refresh data manually if needed (Your original function)
+  // --- Refresh data manually (Your function - potentially update to fetch less?) ---
   const refreshData = async () => {
-    if (!currentWallet || !currentWallet.id || !token || loading) {
-        console.log("Skipping refresh:", { hasWallet: !!currentWallet, hasToken: !!token, isLoading: loading });
-        return;
-    }
-    console.log("Refreshing data manually...");
-    setLoading(true);
-    try {
-      // Fetch all data concurrently
-      // Re-fetch user data too? Maybe not needed unless walletId could change?
-      const [walletData, txHistory, pendingVers] = await Promise.all([
-        api.getWallet(currentWallet.id, token),
-        api.getTransactions(currentWallet.id, token),
-        api.getPendingVerifications(3, token)
-      ]);
-
-      console.log("Refreshed Data:", { walletData, txHistory, pendingVers }); // Log fetched data
-
-      // Update state with fetched data
-      setBalance(walletData.balances || { USD: 0, EUR: 0, MM: 0 });
-      setTransactions(txHistory);
-      setPendingVerifications(pendingVers);
-      // Re-setting currentWallet might trigger unnecessary re-renders if object ref changes
-      // Only update if necessary: setCurrentWallet(prev => ({ ...prev, ...walletData }));
-
-    } catch (error) {
-      console.error('Error refreshing data:', error);
-      if (error.message && error.message.includes('401')) { // Basic check for unauthorized
-          console.log("Token potentially expired during refresh, logging out.");
-          logout();
+      // Check if essential data is missing before attempting refresh
+      if (!token || loading) { // Removed wallet check, as refresh might be needed even without wallet (e.g., after logout error)
+          console.log("Skipping refresh:", { hasToken: !!token, isLoading: loading });
+          return;
       }
-      // Don't clear state on refresh error, keep existing data? Or clear? Depends on desired UX.
-    } finally {
-        setLoading(false);
-    }
+      // Only proceed if we have a token
+      console.log("Refreshing data manually...");
+      setLoading(true);
+      try {
+          // Fetch user data first
+          const userData = await api.getUserData(token);
+          setUser(userData); // Update user state
+
+          // Conditionally fetch wallet-specific data
+          if (userData && userData.walletId) {
+              const [walletData, txHistory, pendingVers] = await Promise.all([
+                  api.getWallet(userData.walletId, token),
+                  api.getTransactions(userData.walletId, token),
+                  api.getPendingVerifications(3, token)
+              ]);
+              console.log("Refreshed Data:", { walletData, txHistory, pendingVers });
+
+              setCurrentWallet(walletData); // Update wallet
+              setBalance(walletData.balances || { USD: 0, EUR: 0, MM: 0 });
+              setTransactions(txHistory);
+              setPendingVerifications(pendingVers);
+          } else {
+              // User exists but no wallet, clear wallet-specific state
+               console.log("Refresh: User found but no walletId, clearing wallet state.");
+               setCurrentWallet(null);
+               setBalance({ USD: 0, EUR: 0, MM: 0 });
+               setTransactions([]);
+               setPendingVerifications([]);
+          }
+      } catch (error) {
+          console.error('Error refreshing data:', error);
+          if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+              console.log("Token potentially expired or invalid during refresh, logging out.");
+              logout(); // Call logout to clear everything
+          }
+          // Keep existing data on non-auth errors during refresh? Or clear? Current setup keeps it.
+      } finally {
+          setLoading(false);
+      }
   };
 
-  // --- ADDED: Wrapper function to update theme state ---
-  const setTheme = (newTheme) => {
-    if (['light', 'dark'].includes(newTheme)) {
-        setThemeState(newTheme);
-    }
-  };
-  // --- END ADDED ---
 
-  // --- ADDED: Function to update user state locally (used after profile update) ---
-  const updateLocalUser = (updatedUserData) => {
-      setUser(prevUser => ({ ...prevUser, ...updatedUserData }));
-  };
-  // --- END ADDED ---
+  // --- setTheme (Your function) ---
+  const setTheme = (newTheme) => { /* ... */ };
+
+  // --- updateLocalUser (Your function) ---
+  const updateLocalUser = (updatedUserData) => { /* ... */ };
 
 
   // Value object provided to consumers of the context
-  // --- UPDATED: Added theme, setTheme, updateLocalUser ---
   const value = {
     user,
     token,
+    // --- Expose private key state ---
+    transientPrivateKey,
+    // ------------------------------
     balance,
     selectedCurrency,
     setSelectedCurrency,
     transactions,
     pendingVerifications,
     currentWallet,
-    loading, // Expose loading state
-    theme,         // <-- Expose theme state
-    setTheme,      // <-- Expose theme setter function
+    loading,
+    theme,
+    setTheme,
     login,
     signup,
     logout,
     addTransaction,
     verifyTransaction,
     refreshData,
-    updateLocalUser // <-- Expose local user update function
+    updateLocalUser
   };
-  // --- END UPDATED ---
 
-  // Return provider wrapping children
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
-// Custom hook for using the context (Your original hook)
-export const useApp = () => {
-  const context = useContext(AppContext);
-  if (context === undefined) {
-    throw new Error('useApp must be used within an AppProvider');
-  }
-  return context;
-};
+// Custom hook for using the context
+export const useApp = () => { /* ... */ };
