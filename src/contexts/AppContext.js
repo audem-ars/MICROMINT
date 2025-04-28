@@ -1,10 +1,27 @@
 // src/contexts/AppContext.js
 import React, { createContext, useState, useEffect, useContext } from 'react';
+// The comment below was in the code you provided - assuming WebSockets are currently not active based on this.
 // REMOVED: import io from 'socket.io-client';
 import * as api from '../services/api';
 
 // Create the context
 const AppContext = createContext();
+
+// --- ADDED: Helper function to get initial theme ---
+const getInitialTheme = () => {
+  if (typeof window !== 'undefined') {
+    const storedTheme = localStorage.getItem('theme');
+    if (storedTheme && ['light', 'dark'].includes(storedTheme)) {
+      return storedTheme;
+    }
+    // Optional: Check system preference (uncomment if desired)
+    // if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    //   return 'dark';
+    // }
+  }
+  return 'light'; // Default theme
+};
+// --- END ADDED HELPER ---
 
 // Provider component
 export const AppProvider = ({ children }) => {
@@ -22,7 +39,21 @@ export const AppProvider = ({ children }) => {
   const [pendingVerifications, setPendingVerifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Initialize from token
+  // --- ADDED: Theme state ---
+  const [theme, setThemeState] = useState(getInitialTheme);
+  // --- END ADDED ---
+
+  // --- ADDED: Theme Effect ---
+  useEffect(() => {
+    // Apply theme class to root element (<html>)
+    const root = window.document.documentElement;
+    root.classList.remove(theme === 'light' ? 'dark' : 'light');
+    root.classList.add(theme);
+    localStorage.setItem('theme', theme); // Persist theme choice
+  }, [theme]);
+  // --- END ADDED ---
+
+  // Initialize from token (Your original useEffect)
   useEffect(() => {
     const initializeFromToken = async () => {
       // Make sure loading is true at the start only if a token exists
@@ -87,10 +118,10 @@ export const AppProvider = ({ children }) => {
   }, [token]); // Re-run only when token changes
 
 
-  // --- WebSocket Integration Block REMOVED ---
+  // --- WebSocket Integration Block REMOVED --- (This comment was in your original code)
 
 
-  // Login function
+  // Login function (Your original function)
   const login = async (email, password) => {
     // No setLoading(true) here, initializeFromToken handles it
     try {
@@ -105,7 +136,7 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  // Signup function
+  // Signup function (Your original function)
   const signup = async (email, password, name) => {
      // No setLoading(true) here, initializeFromToken handles it
     try {
@@ -120,7 +151,7 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  // Logout function
+  // Logout function (Your original function)
   const logout = () => {
     console.log("Logging out..."); // Added log
     localStorage.removeItem('token');
@@ -130,7 +161,7 @@ export const AppProvider = ({ children }) => {
 
   // Functions to update state (API Calls)
   // NOTE: Without WebSockets, these actions won't reflect in real-time automatically
-  // unless followed by a manual refreshData() call.
+  // unless followed by a manual refreshData() call. (This comment was in your original code)
   const addTransaction = async (transactionDetails) => {
     try {
       if (!currentWallet || !token) {
@@ -155,6 +186,7 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  // verifyTransaction (Your original function)
   const verifyTransaction = async (transactionId) => {
     try {
       if (!currentWallet || !token) {
@@ -175,7 +207,7 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  // Refresh data manually if needed
+  // Refresh data manually if needed (Your original function)
   const refreshData = async () => {
     if (!currentWallet || !currentWallet.id || !token || loading) {
         console.log("Skipping refresh:", { hasWallet: !!currentWallet, hasToken: !!token, isLoading: loading });
@@ -213,7 +245,23 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  // --- ADDED: Wrapper function to update theme state ---
+  const setTheme = (newTheme) => {
+    if (['light', 'dark'].includes(newTheme)) {
+        setThemeState(newTheme);
+    }
+  };
+  // --- END ADDED ---
+
+  // --- ADDED: Function to update user state locally (used after profile update) ---
+  const updateLocalUser = (updatedUserData) => {
+      setUser(prevUser => ({ ...prevUser, ...updatedUserData }));
+  };
+  // --- END ADDED ---
+
+
   // Value object provided to consumers of the context
+  // --- UPDATED: Added theme, setTheme, updateLocalUser ---
   const value = {
     user,
     token,
@@ -224,19 +272,23 @@ export const AppProvider = ({ children }) => {
     pendingVerifications,
     currentWallet,
     loading, // Expose loading state
+    theme,         // <-- Expose theme state
+    setTheme,      // <-- Expose theme setter function
     login,
     signup,
     logout,
     addTransaction,
     verifyTransaction,
     refreshData,
+    updateLocalUser // <-- Expose local user update function
   };
+  // --- END UPDATED ---
 
   // Return provider wrapping children
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
-// Custom hook for using the context
+// Custom hook for using the context (Your original hook)
 export const useApp = () => {
   const context = useContext(AppContext);
   if (context === undefined) {
