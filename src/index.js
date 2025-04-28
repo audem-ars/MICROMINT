@@ -1,36 +1,30 @@
 // src/index.js
-// Import React and other frontend dependencies
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import './index.css';
-import App from './App';
+import './index.css'; // Your main CSS
+import App from './App'; // Your main App component
+import { AppProvider } from './contexts/AppContext'; // Import the Provider
 import reportWebVitals from './reportWebVitals';
 
-// Use crypto module for frontend needs (now using crypto-browserify via polyfill)
-const generateSignature = () => {
-  // Create a simple random hex string for signatures in the frontend
-  const randomHex = () => {
-    let result = '';
-    const characters = 'abcdef0123456789';
-    for (let i = 0; i < 32; i++) {
-      result += characters.charAt(Math.floor(Math.random() * characters.length));
-    }
-    return result;
-  };
-  
-  return 'sig_' + randomHex();
-};
-
-// Export any utility functions needed in the frontend
-export { generateSignature };
+// Remove utility functions from here - they belong elsewhere (e.g., utils/crypto.js)
+/*
+const generateSignature = () => { ... };
+export { generateSignature }; // Don't export utilities from index.js
+*/
 
 // Render your React app
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <App />
+    {/* --- AppProvider now wraps the entire App --- */}
+    <AppProvider>
+      <App />
+    </AppProvider>
+    {/* ------------------------------------------ */}
   </React.StrictMode>
 );
 
-// If you're using performance measurements
+// If you want to start measuring performance in your app, pass a function
+// to log results (for example: reportWebVitals(console.log))
+// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
 reportWebVitals();
