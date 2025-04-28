@@ -1,9 +1,9 @@
 // src/App.js
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { AppProvider, useApp } from './contexts/AppContext';
+import { AppProvider, useApp } from './contexts/AppContext'; // Keep this import
 
-// Import components
+// --- Your component imports remain the same ---
 import Dashboard from './components/Dashboard';
 import SendMoney from './components/SendMoney';
 import ReceiveMoney from './components/ReceiveMoney';
@@ -13,46 +13,70 @@ import Signup from './components/Signup';
 import TransactionGraph from './components/TransactionGraph';
 import Analytics from './components/Analytics';
 import Settings from './components/Settings';
-// --- Import New Settings Components ---
 import ProfileSettings from './components/ProfileSettings';
 import SecuritySettings from './components/SecuritySettings';
 import AppearanceSettings from './components/AppearanceSettings';
 import AboutPage from './components/AboutPage';
-// -------------------------------------
+// -------------------------------------------
 
-// Protected route component (remains the same as Option B from before)
+// --- ProtectedRoute Component with Defensive Check ---
 const ProtectedRoute = ({ children }) => {
-  const { user, loading: contextLoading } = useApp();
+  const contextValue = useApp(); // Get the whole context value first
   const location = useLocation();
-  const showInitialSpinner = contextLoading && !user;
 
+  // --- Defensive Check ---
+  // Check if the context value itself is available yet
+  if (!contextValue) {
+       // This log confirms this case is hit initially
+       console.warn("ProtectedRoute rendering before context value is fully available.");
+       // Show a generic loading state while context initializes
+       return (
+           <div className="flex justify-center items-center h-screen bg-white dark:bg-gray-900">
+               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-400"></div> {/* Simple spinner */}
+           </div>
+       );
+  }
+  // ---------------------
+
+  // Now destructure safely, knowing contextValue exists
+  const { user, loading: contextLoading } = contextValue;
+
+  // Use contextLoading directly to check if data fetching is in progress
+  const showInitialSpinner = contextLoading; // Rely solely on context loading flag now
+
+  // Show main spinner WHILE context indicates loading is true
   if (showInitialSpinner) {
+    // This is the spinner you are likely stuck on
     return (
-      // --- MODIFIED: Added dark background ---
       <div className="flex justify-center items-center h-screen bg-white dark:bg-gray-900">
-        {/* --- MODIFIED: Added dark border --- */}
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400"></div>
       </div>
     );
   }
+
+  // If NOT loading, check if user exists
   if (!user) {
+    // If not loading and still no user, redirect to login
+    console.log("ProtectedRoute: Not loading and no user found, redirecting to login.");
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
+
+  // If not loading and user exists, render the children
   return children;
 };
+// --- End ProtectedRoute ---
 
 
-// Component containing the route definitions
+// --- AppRoutes component remains exactly the same ---
 function AppRoutes() {
     return (
-        // --- MODIFIED: Added dark background, shadow, and border ---
         <div className="max-w-md mx-auto h-screen bg-white shadow-lg overflow-hidden flex flex-col dark:bg-gray-800 dark:shadow-slate-700/50 border border-gray-200 dark:border-gray-700">
              <Routes>
-                 {/* Public routes (Ensure Login/Signup components also get dark styles)*/}
+                 {/* Public routes */}
                  <Route path="/login" element={<Login />} />
                  <Route path="/signup" element={<Signup />} />
 
-                 {/* Protected routes (Child components like Dashboard, Settings etc. need dark styles too) */}
+                 {/* Protected routes */}
                  <Route path="/" element={ <ProtectedRoute> <Dashboard /> </ProtectedRoute> } />
                  <Route path="/send" element={ <ProtectedRoute> <SendMoney /> </ProtectedRoute> } />
                  <Route path="/receive" element={ <ProtectedRoute> <ReceiveMoney /> </ProtectedRoute> } />
@@ -60,14 +84,13 @@ function AppRoutes() {
                  <Route path="/graph" element={ <ProtectedRoute> <TransactionGraph /> </ProtectedRoute> } />
                  <Route path="/analytics" element={ <ProtectedRoute> <Analytics /> </ProtectedRoute> } />
 
-                 {/* --- Settings Routes --- */}
+                 {/* Settings Routes */}
                  <Route path="/settings" element={ <ProtectedRoute> <Settings /> </ProtectedRoute> } />
-                 {/* --- Sub-Settings Routes --- */}
+                 {/* Sub-Settings Routes */}
                  <Route path="/settings/profile" element={ <ProtectedRoute> <ProfileSettings /> </ProtectedRoute>} />
                  <Route path="/settings/security" element={ <ProtectedRoute> <SecuritySettings /> </ProtectedRoute>} />
                  <Route path="/settings/appearance" element={ <ProtectedRoute> <AppearanceSettings /> </ProtectedRoute>} />
                  <Route path="/settings/about" element={ <ProtectedRoute> <AboutPage /> </ProtectedRoute>} />
-                 {/* ------------------------- */}
 
                  {/* Catch-all route */}
                  <Route path="*" element={<Navigate to="/" replace />} />
@@ -76,17 +99,19 @@ function AppRoutes() {
          </div>
     );
 }
+// -------------------------------------------------
 
-// Main App component
+
+// --- Main App component remains exactly the same ---
 function App() {
   return (
     <AppProvider>
       <Router>
-        {/* The main container is within AppRoutes; index.css handles the outer body background */}
         <AppRoutes />
       </Router>
     </AppProvider>
   );
 }
+// -------------------------------------------------
 
-export default App;
+export default App; // Keep the export

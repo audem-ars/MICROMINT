@@ -1,4 +1,4 @@
-// api/auth.js
+// api/auth.js (Modified for Query Parameter Routing)
 const { MongoClient, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -38,14 +38,16 @@ module.exports = async (req, res) => {
         db = client.db(DB_NAME);
         console.log(`[api/auth.js] DB Connected for request: ${req.method} ${req.url}`);
 
-        // --- Routing Logic ---
-        const urlParts = req.url.split('?')[0].split('/').filter(part => part); // e.g., ['api', 'auth', 'login'] -> ['login'] relative to /api/auth
-        const action = urlParts[0] || 'default'; // Get 'login', 'signup', 'user' or default
+        // --- ROUTING LOGIC MODIFIED: Use req.query.action ---
+        // Vercel provides query parameters in req.query object
+        const action = req.query.action;
+        console.log(`[api/auth.js] Requested Action (from query): ${action}`);
+        // --- END ROUTING MODIFICATION ---
 
         let result;
 
         // --- Signup Handler ---
-        if (req.method === 'POST' && action === 'signup') {
+        if (req.method === 'POST' && action === 'signup') { // Check query param
             console.log('[api/auth.js] Routing to Signup');
             const { name, email, password } = req.body;
 
@@ -56,8 +58,6 @@ module.exports = async (req, res) => {
 
             const usersCollection = db.collection('users');
             const walletsCollection = db.collection('wallets');
-            // Balances collection reference (NOTE: Balances should likely be embedded now based on create.js)
-            // const balancesCollection = db.collection('balances');
 
             const existingUser = await usersCollection.findOne({ email: email.toLowerCase() });
             if (existingUser) throw { status: 409, body: { error: 'Email address is already registered' } };
@@ -77,17 +77,10 @@ module.exports = async (req, res) => {
                 userId: newUserId.toString(),
                 name: `${name.trim()}'s Wallet`,
                 publicKey: keyPair.publicKey,
-                // --- EMBED BALANCES DIRECTLY ---
-                balances: { ...INITIAL_BALANCES }, // Start with initial balances
-                // privateKey: keyPair.privateKey, // --- SECURITY RISK: AVOID STORING RAW PRIVATE KEY ON SERVER ---
-                // Instead, return private key ONLY in signup response for client to handle securely
+                balances: { ...INITIAL_BALANCES }, // Embed balances
                 created: new Date()
             };
             await walletsCollection.insertOne(newWalletDoc);
-
-            // --- REMOVE separate balances collection logic ---
-            // const balanceDocs = Object.entries(INITIAL_BALANCES).map(([currency, amount]) => ({ /* ... */ }));
-            // await balancesCollection.insertMany(balanceDocs);
 
             const tokenPayload = { userId: newUserId.toString(), email: newUserDoc.email, walletId: newWalletId };
             const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '7d' });
@@ -98,28 +91,26 @@ module.exports = async (req, res) => {
                     message: 'Signup successful',
                     token,
                     user: { id: newUserId.toString(), email: newUserDoc.email, name: newUserDoc.name, walletId: newWalletId },
-                    // --- IMPORTANT: Return private key ONLY here, securely ---
-                    // --- The client MUST handle this immediately and store it safely (NOT localStorage for production) ---
-                    privateKey: keyPair.privateKey // Send private key in response body
+                    privateKey: keyPair.privateKey // Send private key ONLY on signup
                 }
             };
 
         // --- Login Handler ---
-        } else if (req.method === 'POST' && action === 'login') {
+        } else if (req.method === 'POST' && action === 'login') { // Check query param
             console.log('[api/auth.js] Routing to Login');
             const { email, password } = req.body;
             if (!email || !password) throw { status: 400, body: { error: 'Email and password are required' } };
 
-            const user = await db.collection('users').findOne({ email });
+            const user = await db.collection('users').findOne({ email: email.toLowerCase() }); // Use lowercase for lookup consistency
             if (!user) throw { status: 401, body: { error: 'Invalid credentials' } };
 
             const isPasswordValid = await bcrypt.compare(password, user.password);
             if (!isPasswordValid) throw { status: 401, body: { error: 'Invalid credentials' } };
 
             const wallet = await db.collection('wallets').findOne({ userId: user._id.toString() });
-            if (!wallet) { // Should ideally not happen if signup creates wallet
+            if (!wallet) {
                  console.error(`Login Error: Wallet not found for user ${user._id}`);
-                 throw new Error('User data inconsistent: Wallet missing'); // Throw 500
+                 throw new Error('User data inconsistent: Wallet missing');
             }
 
             const tokenPayload = { userId: user._id.toString(), email: user.email, walletId: wallet.id };
@@ -131,12 +122,11 @@ module.exports = async (req, res) => {
                     message: 'Login successful',
                     token,
                     user: { id: user._id.toString(), email: user.email, name: user.name, walletId: wallet.id }
-                     // DO NOT RETURN PRIVATE KEY ON LOGIN
                 }
             };
 
         // --- Get User Handler ---
-        } else if (req.method === 'GET' && action === 'user') {
+        } else if (req.method === 'GET' && action === 'user') { // Check query param
             console.log('[api/auth.js] Routing to Get User');
             const authHeader = req.headers.authorization;
             if (!authHeader || !authHeader.startsWith('Bearer ')) throw { status: 401, body: { error: 'Authorization header missing or invalid format' } };
@@ -158,7 +148,6 @@ module.exports = async (req, res) => {
 
              // Fetch wallet
              const wallet = await db.collection('wallets').findOne({ userId: user._id.toString() });
-             // Wallet might potentially be null if signup failed mid-way, handle gracefully
 
              const userData = {
                  id: user._id.toString(),
@@ -169,10 +158,14 @@ module.exports = async (req, res) => {
              result = { status: 200, body: userData };
 
         } else {
-            // Handle unknown actions for /api/auth
-            console.log(`[api/auth.js] Route not matched: ${req.method} ${req.url}`);
-            res.setHeader('Allow', ['GET', 'POST']); // Adjust allowed methods
-            return res.status(404).json({ error: 'Auth action not found' });
+            // Handle unknown actions or methods for /api/auth
+            console.log(`[api/auth.js] Action not matched or invalid method: Method=${req.method} Action=${action}`);
+            res.setHeader('Allow', ['GET', 'POST']);
+            // Use 400 Bad Request if action parameter is missing/invalid for expected methods
+            // Use 405 Method Not Allowed if action is known but method is wrong
+            const status = action ? 405 : 400;
+            const errorMessage = action ? `Method ${req.method} not allowed for action ${action}` : 'Missing or invalid action query parameter';
+            return res.status(status).json({ error: errorMessage });
         }
 
         // --- Send Response from Handler Result ---
@@ -181,7 +174,6 @@ module.exports = async (req, res) => {
     } catch (error) {
         // Catch errors thrown from handlers or DB connection
         console.error(`[api/auth.js] Unhandled Error: ${req.method} ${req.url}`, error);
-        // If error has status/body (thrown by us), use that, otherwise default to 500
         const status = error.status || 500;
         const body = error.body || { error: 'Internal Server Error', details: error.message };
         return res.status(status).json(body);
