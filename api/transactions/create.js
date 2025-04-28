@@ -1,12 +1,11 @@
 // api/transactions/create.js
 const { MongoClient, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken');
-// --- YOU MUST PROVIDE THIS UTILITY ---
-// Import your signature verification function
-// Example: import { verifySignature } from '../utils/crypto';
-// Ensure it expects parameters: verifySignature(messageString, signatureHex, publicKeyHex)
-// const { verifySignature } = require('../utils/crypto'); // ADJUST PATH IF NEEDED
-// -------------------------------------
+
+// --- STEP 1: Import the verification function (Ensure path is correct) ---
+const { verifySignature } = require('../utils/crypto');
+// -----------------------------------------------------------------------
+
 const { db: firebaseDb, initialized: firebaseInitialized } = require('../utils/firebaseAdmin'); // For Firebase push
 
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -15,7 +14,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const NUMBER_OF_PARENTS = 2; // Target number of parents to link
 
 module.exports = async (req, res) => {
-    // --- 1. Check Method & Content Type ---
+    // --- 1. Check Method & Content Type (Your original code) ---
     if (req.method !== 'POST') {
         res.setHeader('Allow', ['POST']);
         return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
@@ -24,7 +23,7 @@ module.exports = async (req, res) => {
         return res.status(415).json({ error: 'Unsupported Media Type: application/json required' });
     }
 
-    // --- 2. Authentication & Get User Info ---
+    // --- 2. Authentication & Get User Info (Your original code) ---
     const authHeader = req.headers.authorization;
     let decoded;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -45,7 +44,7 @@ module.exports = async (req, res) => {
     const senderUserId = decoded.userId; // Assuming this is MongoDB ObjectId string from User doc
     const senderWalletId = decoded.walletId; // This is the custom mm_... ID
 
-    // --- 3. Get & Validate Transaction Data from Body ---
+    // --- 3. Get & Validate Transaction Data from Body (Your original code) ---
     const { amount: reqAmount, currency, recipientWalletId, note, timestamp, signature } = req.body;
 
     // Basic type and presence validation
@@ -64,7 +63,7 @@ module.exports = async (req, res) => {
     let client; // MongoDB client
 
     try {
-        // --- 4. Connect to DB ---
+        // --- 4. Connect to DB (Your original code) ---
         client = new MongoClient(MONGODB_URI);
         await client.connect();
         const db = client.db(DB_NAME);
@@ -75,7 +74,7 @@ module.exports = async (req, res) => {
         console.log(`Processing transaction: ${amount} ${currency} from ${senderWalletId} to ${recipientWalletId}`);
 
         // --- 5. Deeper Validation ---
-        // a) Fetch Sender's Wallet & Public Key (using custom mm_... ID)
+        // a) Fetch Sender's Wallet & Public Key (using custom mm_... ID) (Your original code)
         const senderWallet = await walletsCollection.findOne({ id: senderWalletId });
         if (!senderWallet || !senderWallet.publicKey) {
             // Log userId too for debugging linkage issues
@@ -84,8 +83,8 @@ module.exports = async (req, res) => {
         }
         const senderPublicKeyHex = senderWallet.publicKey; // Assuming stored as Hex
 
-        // b) Verify Signature (CRITICAL)
-        // Construct the message string EXACTLY as it was signed on the client
+        // --- Start: Modified Signature Verification Block ---
+        // b) Verify Signature (CRITICAL - NOW ENABLED)
         const messageToVerify = JSON.stringify({
              amount: amount, // Use the parsed number
              currency: currency,
@@ -94,36 +93,43 @@ module.exports = async (req, res) => {
              timestamp: timestamp // Use the original timestamp string received
         });
 
-        // !!! REPLACE THIS WITH YOUR ACTUAL VERIFICATION FUNCTION CALL !!!
         let isSignatureValid = false;
         try {
-             // Example: isSignatureValid = verifySignature(messageToVerify, signature, senderPublicKeyHex);
-             console.warn("!!! SIGNATURE VERIFICATION IS SKIPPED - Replace with actual call to verifySignature() !!!");
-             isSignatureValid = true; // TEMPORARY PLACEHOLDER - REMOVE
+            // Call the imported verifySignature function
+            isSignatureValid = verifySignature(messageToVerify, signature, senderPublicKeyHex);
+
         } catch (sigError) {
-            console.error("Error during signature verification:", sigError);
-            return res.status(401).json({ error: 'Signature verification check failed' }); // Or 500 if util fails unexpectedly
+            // Handle errors *within* the verifySignature util (e.g., bad hex format)
+            console.error("Error calling signature verification utility:", sigError);
+            // Return 500 if the utility itself failed unexpectedly
+            return res.status(500).json({ error: 'Signature verification check failed internally' });
         }
+
+        // Check the result of the verification
         if (!isSignatureValid) {
-            console.warn(`Invalid signature for transaction from ${senderWalletId}. Message: ${messageToVerify}, Sig: ${signature}, PK: ${senderPublicKeyHex}`);
+            console.warn(`Invalid signature for transaction from ${senderWalletId}. \nMessage: ${messageToVerify}\nSig: ${signature}\nPK: ${senderPublicKeyHex}`);
+            // Return 401 Unauthorized as the signature doesn't match
             return res.status(401).json({ error: 'Invalid transaction signature' });
         }
-        // !!! END OF SIGNATURE VERIFICATION PLACEHOLDER !!!
+        // Signature is valid, proceed.
+        console.log(`Signature verified successfully for transaction from ${senderWalletId}.`);
+        // --- End: Modified Signature Verification Block ---
 
-        // c) Check Recipient Wallet Exists (using custom mm_... ID)
+
+        // c) Check Recipient Wallet Exists (using custom mm_... ID) (Your original code)
         const recipientWallet = await walletsCollection.findOne({ id: recipientWalletId }, { projection: { _id: 1 } }); // Check existence efficiently
         if (!recipientWallet) {
             return res.status(404).json({ error: 'Recipient wallet not found' });
         }
 
-        // d) Check Sender Balance (using embedded balances)
+        // d) Check Sender Balance (using embedded balances) (Your original code)
         const balancePath = `balances.${currency}`; // Path for dot notation update/query
         const currentSenderBalance = senderWallet.balances?.[currency] ?? 0; // Get current balance safely
         if (currentSenderBalance < amount) {
            return res.status(400).json({ error: `Insufficient ${currency} balance. Available: ${currentSenderBalance.toFixed(8)}` }); // Show more decimal places?
         }
 
-        // --- 6. Select Parent IDs (Tip Selection - Aim for 2 Random Tips) ---
+        // --- 6. Select Parent IDs (Tip Selection - Aim for 2 Random Tips) (Your original code) ---
         let parentIds = []; // Stores ObjectIds
         try {
             const candidateParents = await transactionsCollection.find(
@@ -163,7 +169,7 @@ module.exports = async (req, res) => {
              parentIds = [];
         }
 
-        // --- 7. Prepare New Transaction Document ---
+        // --- 7. Prepare New Transaction Document (Your original code) ---
         const newTransaction = {
             // _id will be auto-generated by MongoDB
             senderWalletId: senderWalletId,
@@ -180,7 +186,7 @@ module.exports = async (req, res) => {
             // Add other relevant fields if needed
         };
 
-        // --- 8. Atomically Update Balances & Insert Transaction ---
+        // --- 8. Atomically Update Balances & Insert Transaction (Your original code) ---
         // ** PRODUCTION NOTE: Use MongoDB Transactions for guaranteed atomicity **
         // const session = client.startSession();
         let savedTxId; // To store the ID of the inserted transaction
@@ -204,15 +210,8 @@ module.exports = async (req, res) => {
 
                 // b) Increase recipient balance
                 // Using $inc automatically handles if the currency field exists.
-                // Need upsert only if the entire 'balances' object might be missing (unlikely if created at signup)
                 await walletsCollection.updateOne(
                     { id: recipientWalletId },
-                    { $inc: { [balancePath]: amount }, $setOnInsert: { [`balances.${currency}`]: 0 } }, // $inc works even if field absent, but $setOnInsert helps guarantee field path on potential upsert later? Let's simplify:
-                    // Simpler $inc:
-                    // { $inc: { [balancePath]: amount } }
-                    // If you *know* the balances object and currency field might not exist:
-                    // { $inc: { [balancePath]: amount } }, { upsert: true } // Be careful with upserting nested docs
-                    // Let's assume balances object exists from signup:
                     { $inc: { [balancePath]: amount } }
                     // { session } // Pass session if using transactions
                 );
@@ -235,7 +234,7 @@ module.exports = async (req, res) => {
             // if (session) await session.endSession();
         }
 
-        // --- 9. (Optional) Notify via Firebase ---
+        // --- 9. (Optional) Notify via Firebase (Your original code) ---
         if (firebaseInitialized && firebaseDb && savedTxId) {
             try {
                 const txIdStr = savedTxId.toString();
@@ -266,13 +265,17 @@ module.exports = async (req, res) => {
              console.warn("Firebase Admin SDK not initialized or transaction not saved, skipping push to RTDB.");
         }
 
-        // --- 10. Return Success ---
+        // --- 10. Return Success (Your original code) ---
         const responseTransaction = { ...newTransaction, _id: savedTxId }; // Final object with _id
         return res.status(201).json({ message: 'Transaction created successfully', transaction: responseTransaction });
 
     } catch (error) {
         console.error("Error in /api/transactions/create:", error);
-        return res.status(500).json({ error: 'Failed to create transaction', details: error.message });
+         // Avoid exposing detailed internal errors to the client in production
+         // Use specific status codes and messages where appropriate (like the balance check)
+        const clientErrorMessage = error.message.startsWith('Failed to update sender balance') || error.message.startsWith('Insufficient') ? error.message : 'Failed to create transaction';
+        const statusCode = error.message.startsWith('Insufficient') ? 400 : (error.message === 'Invalid transaction signature' ? 401 : 500); // Adjust status code
+        return res.status(statusCode).json({ error: clientErrorMessage });
     } finally {
         if (client) {
             await client.close();
