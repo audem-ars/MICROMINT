@@ -185,40 +185,38 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  // --- verifyTransaction (MODIFIED) ---
-  // Needs to call the new backend endpoint
-  const verifyTransaction = async (transactionId) => {
-    try {
-      if (!token) { // Check only for token, wallet isn't strictly needed for verification API call
-        throw new Error('Not authenticated');
+    // --- verifyTransaction (Corrected to use existing api.verifyTransaction) ---
+    const verifyTransaction = async (transactionId) => {
+      try {
+        if (!token) {
+          throw new Error('Not authenticated');
+        }
+  
+        // --- Use the EXISTING api.verifyTransaction function ---
+        console.log(`Context: Calling API to submit verification for ${transactionId}`);
+        // Ensure api.verifyTransaction is correctly imported and called
+        const result = await api.verifyTransaction(transactionId, token); // <<< CORRECTED FUNCTION CALL
+        console.log('Verification submission API call successful:', result);
+        // ----------------------------------------------
+  
+        // Remove from pending locally immediately for better UX
+        setPendingVerifications(current =>
+          current.filter(v => (v.id || v._id || v.transactionId) !== transactionId)
+        );
+  
+        // Refresh data to get updated MM balance (reward) and potentially new pending txns
+        await refreshData();
+  
+        // Assuming backend returns { rewardCredited: amount } or similar
+        return result.rewardCredited || 0; // Return reward amount or default
+  
+      } catch (error) {
+        console.error('Verification submission failed (context):', error);
+        // Show error from API if possible, otherwise generic message
+        alert(`Verification failed: ${error.response?.data?.error || error.message || 'Unknown error'}`);
+        throw error;
       }
-
-      // --- Make API call to backend verify endpoint ---
-      // Assumes you create an api.submitVerification function in src/services/api.js
-      // This function should make a POST request to '/api/transactions/verify' (or your chosen path)
-      // sending { transactionId } in the body and the auth token.
-      console.log(`Context: Calling API to submit verification for ${transactionId}`);
-      const result = await api.submitVerification(transactionId, token); // Pass ID and token
-      console.log('Verification submission API call successful:', result);
-      // ----------------------------------------------
-
-      // Remove from pending locally immediately for better UX
-      // Note: The backend now handles the state change, but removing locally gives instant feedback
-      setPendingVerifications(current =>
-        current.filter(v => (v.id || v._id || v.transactionId) !== transactionId)
-      );
-
-      // Refresh data to get updated MM balance (reward) and potentially new pending txns
-      await refreshData();
-
-      return result.rewardCredited; // Return reward amount from API response
-    } catch (error) {
-      console.error('Verification submission failed (context):', error);
-      // Consider providing more specific feedback based on error type
-      alert(`Verification failed: ${error.response?.data?.error || error.message}`); // Show error from API if possible
-      throw error; // Re-throw for component handling if needed
-    }
-  };
+    };
 
   // --- Refresh data manually (Your function - potentially update to fetch less?) ---
   const refreshData = async () => {
