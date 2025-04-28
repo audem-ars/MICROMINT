@@ -1,3 +1,4 @@
+/* src/index.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -9,7 +10,11 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f5f5f7;
+  /* background-color: #f5f5f7; */ /* Replaced by @apply below */
+
+  /* --- ADDED: Apply Tailwind classes for light/dark background --- */
+  @apply bg-gray-100 dark:bg-gray-950; /* Base background for the whole page */
+  /* -------------------------------------------------------------- */
 }
 
 code {
@@ -17,31 +22,35 @@ code {
     monospace;
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar (keep as is, or style for dark mode if desired) */
 ::-webkit-scrollbar {
   width: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+   /* Optional: Dark track */
+  @apply bg-gray-200 dark:bg-gray-800;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #888;
+   /* Optional: Dark thumb */
+  @apply bg-gray-500 dark:bg-gray-400;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+   /* Optional: Dark thumb hover */
+  @apply bg-gray-600 dark:bg-gray-300;
 }
 
-/* Custom focus styles */
+/* Custom focus styles (keep as is, generally fine) */
 button:focus, input:focus {
-  outline: 2px solid rgba(0, 0, 0, 0.1);
+  /* Consider a slightly more visible dark mode focus ring if needed */
+  outline: 2px solid rgba(0, 0, 0, 0.1); /* Maybe change outline color for dark */
   outline-offset: 2px;
 }
 
-/* Animation utilities */
+/* Animation utilities (keep as is) */
 .fade-in {
   animation: fadeIn 0.3s ease-in;
 }

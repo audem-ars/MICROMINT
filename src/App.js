@@ -28,8 +28,10 @@ const ProtectedRoute = ({ children }) => {
 
   if (showInitialSpinner) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      // --- MODIFIED: Added dark background ---
+      <div className="flex justify-center items-center h-screen bg-white dark:bg-gray-900">
+        {/* --- MODIFIED: Added dark border --- */}
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400"></div>
       </div>
     );
   }
@@ -43,13 +45,14 @@ const ProtectedRoute = ({ children }) => {
 // Component containing the route definitions
 function AppRoutes() {
     return (
-        <div className="max-w-md mx-auto h-screen bg-white shadow-lg overflow-hidden flex flex-col">
+        // --- MODIFIED: Added dark background, shadow, and border ---
+        <div className="max-w-md mx-auto h-screen bg-white shadow-lg overflow-hidden flex flex-col dark:bg-gray-800 dark:shadow-slate-700/50 border border-gray-200 dark:border-gray-700">
              <Routes>
-                 {/* Public routes */}
+                 {/* Public routes (Ensure Login/Signup components also get dark styles)*/}
                  <Route path="/login" element={<Login />} />
                  <Route path="/signup" element={<Signup />} />
 
-                 {/* Protected routes */}
+                 {/* Protected routes (Child components like Dashboard, Settings etc. need dark styles too) */}
                  <Route path="/" element={ <ProtectedRoute> <Dashboard /> </ProtectedRoute> } />
                  <Route path="/send" element={ <ProtectedRoute> <SendMoney /> </ProtectedRoute> } />
                  <Route path="/receive" element={ <ProtectedRoute> <ReceiveMoney /> </ProtectedRoute> } />
@@ -79,6 +82,7 @@ function App() {
   return (
     <AppProvider>
       <Router>
+        {/* The main container is within AppRoutes; index.css handles the outer body background */}
         <AppRoutes />
       </Router>
     </AppProvider>
