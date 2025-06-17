@@ -1,4 +1,4 @@
-// src/components/Login.js
+// src/components/Login.js - Updated with forgot password link
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
@@ -58,7 +58,7 @@ const Login = () => {
               />
             </div>
 
-            <div className="mb-6">
+            <div className="mb-4">
               <label className="block text-sm text-gray-700 mb-2" htmlFor="password">
                 Password
               </label>
@@ -70,6 +70,17 @@ const Login = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
+            </div>
+
+            {/* FORGOT PASSWORD LINK - THIS WAS MISSING */}
+            <div className="mb-6 text-right">
+              <button
+                type="button"
+                onClick={() => navigate('/forgot-password')}
+                className="text-sm text-blue-600 hover:underline"
+              >
+                Forgot your password?
+              </button>
             </div>
 
             <button

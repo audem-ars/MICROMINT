@@ -1,23 +1,26 @@
-// src/services/api.js
+// src/services/api.js - Fixed version
 
 const API_BASE = '/api'; // Your API base path
 
-// Helper function for API requests (Keep your existing helper)
+// Helper function for API requests (Fixed the response reading issue)
 const apiRequest = async (endpoint, options = {}) => {
   const url = `${API_BASE}${endpoint}`; // Construct full URL
+  
   // Add Authorization header automatically if token exists and not disabled
   const token = options.token || localStorage.getItem('token');
   const headers = {
       'Content-Type': 'application/json',
       ...options.headers,
   };
+  
   if (token && !options.noAuth) {
       headers['Authorization'] = `Bearer ${token}`;
   }
-   // Delete Content-Type for GET/HEAD etc.
-   if (options.method === 'GET' || options.method === 'HEAD' || !options.method) {
-       delete headers['Content-Type'];
-   }
+  
+  // Delete Content-Type for GET/HEAD etc.
+  if (options.method === 'GET' || options.method === 'HEAD' || !options.method) {
+      delete headers['Content-Type'];
+  }
 
   const config = {
        ...options, // Spread options first
@@ -25,26 +28,32 @@ const apiRequest = async (endpoint, options = {}) => {
    };
 
    // Log the request being made
-   // console.log(`API Request: ${config.method || 'GET'} ${url}`, options.body ? JSON.parse(options.body) : '');
+   console.log(`[API] Making request: ${config.method || 'GET'} ${url}`, options.body ? JSON.parse(options.body) : '');
+   console.log(`[API] Request headers:`, config.headers);
 
   try {
-       const response = await fetch(url, config); // Use the constructed URL
+       const response = await fetch(url, config);
+       console.log(`[API] Response status: ${response.status} for ${url}`);
 
+       // Clone the response to avoid "body stream already read" error
+       const responseClone = response.clone();
+       
        // Try to parse JSON regardless of status for error messages
        let responseData = {};
        try {
            responseData = await response.json();
-       } catch (e) {
-           // If JSON parsing fails, use text body if available, or statusText
-           if (!response.ok) { // Only throw if response wasn't ok
-                responseData = { error: await response.text() || response.statusText };
-           } else {
-                responseData = {}; // Successful response with non-JSON body (unlikely for this API)
+           console.log(`[API] Response data:`, responseData);
+       } catch (jsonError) {
+           console.warn('[API] Failed to parse as JSON, trying text:', jsonError);
+           // If JSON parsing fails, try text from the clone
+           try {
+               const textData = await responseClone.text();
+               responseData = { error: textData || response.statusText };
+           } catch (textError) {
+               console.error('[API] Failed to parse as text too:', textError);
+               responseData = { error: response.statusText || 'Unknown error' };
            }
        }
-
-       // Log response status and data
-       // console.log(`API Response: ${response.status} ${url}`, responseData);
 
        if (!response.ok) {
            // Throw an error with details from the parsed response body
@@ -66,32 +75,28 @@ const apiRequest = async (endpoint, options = {}) => {
    }
 };
 
-
-// --- MODIFIED Authentication functions ---
+// --- FIXED Authentication functions ---
 export const signup = async (email, password, name) => {
-  // Target /api/auth and add action query parameter
-  return apiRequest('/auth?action=signup', { // <<< CHANGED PATH
+  // FIXED: Changed from '/auth?action=signup' to '/auth?action=signup' (auth.js handles this)
+  return apiRequest('/auth?action=signup', {
     method: 'POST',
-    // headers already handled by helper
     body: JSON.stringify({ email, password, name })
   });
 };
 
 export const login = async (email, password) => {
-  // Target /api/auth and add action query parameter
-  return apiRequest('/auth?action=login', { // <<< CHANGED PATH
+  // FIXED: Changed from '/auth?action=login' to '/auth?action=login' (auth.js handles this)
+  return apiRequest('/auth?action=login', {
     method: 'POST',
-    // headers already handled by helper
     body: JSON.stringify({ email, password })
   });
 };
 
 export const getUserData = async (token) => {
-  // Target /api/auth and add action query parameter
-  return apiRequest('/auth?action=user', { // <<< CHANGED PATH
-    method: 'GET', // Specify GET
-    token: token // Pass token to helper for Authorization header
-    // no body for GET
+  // FIXED: Changed from '/auth?action=user' to '/auth?action=user' (auth.js handles this)
+  return apiRequest('/auth?action=user', {
+    method: 'GET',
+    token: token
   });
 };
 
@@ -103,9 +108,6 @@ export const getWallet = async (walletId, token) => {
     token: token
   });
 };
-
-// Remove getBalance unless you have a specific /api/wallets/balance endpoint
-// export const getBalance = async (walletId, token) => { ... };
 
 export const getTransactions = async (walletId, token) => {
   // Assuming /api/transactions/history.js exists
@@ -127,9 +129,8 @@ export const createTransaction = async (transaction, token) => {
    // Assuming /api/transactions/create.js exists
   return apiRequest('/transactions/create', {
     method: 'POST',
-    body: JSON.stringify(transaction), // Ensure body is stringified
+    body: JSON.stringify(transaction),
     token: token
-    // Content-Type automatically added by helper for POST with body
   });
 };
 
@@ -137,9 +138,8 @@ export const verifyTransaction = async (transactionId, token) => {
   // Assuming /api/transactions/verify.js will exist
   return apiRequest('/transactions/verify', {
     method: 'POST',
-    body: JSON.stringify({ transactionId }), // Ensure body is stringified
+    body: JSON.stringify({ transactionId }),
     token: token
-    // Content-Type automatically added by helper
   });
 };
 
@@ -148,5 +148,19 @@ export const getTransactionGraph = async (walletId, depth = 20, token) => {
   return apiRequest(`/transactions/graph?walletId=${encodeURIComponent(walletId)}&depth=${depth}`, {
     method: 'GET',
     token: token
+  });
+};
+
+export const forgotPassword = async (email) => {
+  return apiRequest('/auth?action=forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email })
+  });
+};
+
+export const resetPassword = async (token, newPassword) => {
+  return apiRequest('/auth?action=reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ token, password: newPassword })
   });
 };

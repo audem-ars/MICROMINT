@@ -1,7 +1,11 @@
 // src/App.js
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { AppProvider, useApp } from './contexts/AppContext'; // Keep this import
+import { AppProvider, useApp } from './contexts/AppContext';
+
+// --- Password Reset Components ---
+import ForgotPassword from './components/ForgotPassword';
+import ResetPassword from './components/ResetPassword';
 
 // --- Your component imports remain the same ---
 import Dashboard from './components/Dashboard';
@@ -66,8 +70,7 @@ const ProtectedRoute = ({ children }) => {
 };
 // --- End ProtectedRoute ---
 
-
-// --- AppRoutes component remains exactly the same ---
+// --- AppRoutes component with password reset routes added ---
 function AppRoutes() {
     return (
         <div className="max-w-md mx-auto h-screen bg-white shadow-lg overflow-hidden flex flex-col dark:bg-gray-800 dark:shadow-slate-700/50 border border-gray-200 dark:border-gray-700">
@@ -75,9 +78,14 @@ function AppRoutes() {
                  {/* Public routes */}
                  <Route path="/login" element={<Login />} />
                  <Route path="/signup" element={<Signup />} />
+                 
+                 {/* Password Reset Routes */}
+                 <Route path="/forgot-password" element={<ForgotPassword />} />
+                 <Route path="/reset-password" element={<ResetPassword />} />
 
                  {/* Protected routes */}
                  <Route path="/" element={ <ProtectedRoute> <Dashboard /> </ProtectedRoute> } />
+                 <Route path="/dashboard" element={ <ProtectedRoute> <Dashboard /> </ProtectedRoute> } />
                  <Route path="/send" element={ <ProtectedRoute> <SendMoney /> </ProtectedRoute> } />
                  <Route path="/receive" element={ <ProtectedRoute> <ReceiveMoney /> </ProtectedRoute> } />
                  <Route path="/verify" element={ <ProtectedRoute> <Verification /> </ProtectedRoute> } />
@@ -101,7 +109,6 @@ function AppRoutes() {
 }
 // -------------------------------------------------
 
-
 // --- Main App component remains exactly the same ---
 function App() {
   return (
@@ -114,4 +121,4 @@ function App() {
 }
 // -------------------------------------------------
 
-export default App; // Keep the export
+export default App;
